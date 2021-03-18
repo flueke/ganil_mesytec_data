@@ -140,12 +140,11 @@ namespace mesytec
       // Read 4 bytes from stream and return 32-bit little-endian data word
       //
       // Throws end_of_buffer exception if 4 bytes cannot be read.
-      std::vector<unsigned char> bytes(4);
-      for (int k = 0; k < 4; ++k) {
-         data.read(reinterpret_cast<char*>(&bytes[k]), sizeof bytes[k]);
-         if (!data.good()) throw end_of_buffer("failed to read 4 bytes from buffer");
-      }
-      return (bytes[3] << 24) + (bytes[2] << 16) + (bytes[1] << 8) + bytes[0];
+
+      uint32_t DATA;
+      data.read(reinterpret_cast<char*>(&DATA), 4);
+      if (!data.good()) throw end_of_buffer("failed to read 4 bytes from buffer");
+      return DATA;
    }
    bool is_header(uint32_t DATA)
    {

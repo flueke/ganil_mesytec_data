@@ -5,7 +5,6 @@
 #include <map>
 
 #include "mesytec_data.h"
-#include "mesytec_module.h"
 
 int main(int, char* argv[])
 {
@@ -89,12 +88,10 @@ int main(int, char* argv[])
       std::map<uint32_t,mesytec::mdpp_event> event_map;
 
       while(nevents--){
-         // next_word is header...
-         auto words_to_read = mesytec::length_of_data(next_word);
-         mesytec::mdpp_module_data mod_data{mesytec::module_id(next_word), words_to_read};
+         // next_word is header for module data...
+         mesytec::mdpp_module_data mod_data{next_word};
          auto& module = mesytec_setup[mod_data.module_id];
-
-         // (words_to_read-1) data words + 1 EOE
+         auto words_to_read = mod_data.data_words;  // (words_to_read-1) data words + 1 EOE
          bool got_eoe=false;
          while(words_to_read--)
          {
@@ -102,7 +99,7 @@ int main(int, char* argv[])
             if(mesytec::is_mdpp_data(next_word)) {
                module.set_data_word(next_word);
                //module.print_mdpp_data();
-               mod_data.add_data( module.data_type(), module.channel_number(), module.channel_data());
+               mod_data.add_data( module.data_type(), module.channel_number(), module.channel_data(), next_word);
             }
             else if(mesytec::is_end_of_event(next_word))
             {
@@ -115,6 +112,7 @@ int main(int, char* argv[])
                   got_eoe=true;
                   //MTEC.print_eoe(next_word);
                   mod_data.event_counter = mesytec::event_counter(next_word);
+                  mod_data.eoe_word = next_word;
                   mesytec::mdpp_event& event = event_map[mod_data.event_counter];
                   event.event_counter = mod_data.event_counter;
                   event.add_module_data(mod_data);
@@ -122,6 +120,10 @@ int main(int, char* argv[])
                   {
                      // event is complete, can be sent to buffer etc.
                      event.ls();
+//                     auto out_buf = event.get_output_buffer();
+//                     std::cout << "Output buffer should contain " << event.size_of_buffer() << " 32-bit words" << std::endl;
+//                     std::cout << "Output buffer contains " << out_buf.size() << " 32-bit words" << std::endl;
+//                     for(auto v : out_buf) printf("%#08x\n", v);
                      // delete event after sending/printing
                      auto it = event_map.find(event.event_counter);
                      event_map.erase(it);

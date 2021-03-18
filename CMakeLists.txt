@@ -4,7 +4,7 @@ project(mesytec_data)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_library(mesytec_data SHARED mesytec_module.cpp mesytec_data.cpp)
+add_library(mesytec_data SHARED mesytec_data.cpp)
 add_executable(read_listfile read_listfile.cpp)
 target_link_libraries(read_listfile mesytec_data)
 
