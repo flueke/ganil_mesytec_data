@@ -5,6 +5,7 @@
 #include <map>
 
 #include "mesytec_data.h"
+#include "mesytec_buffer_reader.h"
 
 int main(int, char* argv[])
 {
@@ -120,10 +121,17 @@ int main(int, char* argv[])
                   {
                      // event is complete, can be sent to buffer etc.
                      event.ls();
-//                     auto out_buf = event.get_output_buffer();
-//                     std::cout << "Output buffer should contain " << event.size_of_buffer() << " 32-bit words" << std::endl;
-//                     std::cout << "Output buffer contains " << out_buf.size() << " 32-bit words" << std::endl;
-//                     for(auto v : out_buf) printf("%#08x\n", v);
+                     auto out_buf = event.get_output_buffer();
+                     std::cout << "Output buffer should contain " << event.size_of_buffer() << " 32-bit words" << std::endl;
+                     std::cout << "Output buffer contains " << out_buf.size() << " 32-bit words" << std::endl;
+                     std::cout << "Size of buffer in bytes: " << 4*out_buf.size() << std::endl;
+
+                     std::cout << "=====READING FROM BUFFER=====" << std::endl;
+                     mesytec::mesytec_buffer_reader buf_read(mesytec_setup);
+                     buf_read.read_buffer((const uint8_t*)out_buf.data(), 4*out_buf.size(),
+                                           [](mesytec::mdpp_event& Event){ Event.ls(); });
+                     std::cout << "========END OF BUFFER========" << std::endl;
+
                      // delete event after sending/printing
                      auto it = event_map.find(event.event_counter);
                      event_map.erase(it);
