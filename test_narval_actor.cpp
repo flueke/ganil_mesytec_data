@@ -2,6 +2,7 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <fstream>
 using namespace std::chrono_literals;
 
 int main(int argc, char* argv[])
@@ -41,7 +42,10 @@ int main(int argc, char* argv[])
             );
    mesytec::mesytec_buffer_reader readBuf{mesytec_setup};
 
-   while(1)
+   std::ofstream mfmfile("run_0001.dat", std::ios::binary);
+
+   int n=10;
+   while(n--)
    {
       unsigned int buff_used=0;
       process_block(algo_dat,
@@ -56,11 +60,12 @@ int main(int argc, char* argv[])
       }
       else std::cout << "Used " << buff_used << " bytes of output buffer size " << bufsize << " bytes";
 
-      auto tot_num = readBuf.read_buffer(
-               (const uint8_t*)buffer, buff_used, [](mesytec::mdpp_event&){ }
-      );
-      std::cout << " : containing " << tot_num << " events\n";
+      if(buff_used) mfmfile.write(reinterpret_cast<char*>(buffer), buff_used);
 
       std::this_thread::sleep_for(1000ms);
    }
+
+   mfmfile.close();
+
+   return 0;
 }

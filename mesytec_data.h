@@ -19,6 +19,9 @@ namespace mesytec
 
       mdpp_channel_data()=default;
       ~mdpp_channel_data()=default;
+      mdpp_channel_data(uint32_t _dw)
+         : data_word{std::move(_dw)}
+      {}
       mdpp_channel_data(std::string _type, uint8_t _chan, uint16_t _data, uint32_t _dw)
          : data_type{std::move(_type)}, data{std::move(_data)}, channel{std::move(_chan)}, data_word{std::move(_dw)}
       {}
@@ -82,6 +85,10 @@ namespace mesytec
       void add_data(std::string type, uint8_t channel, uint16_t datum, uint32_t data_word)
       {
          data.emplace_back(type,channel,datum,data_word);
+      }
+      void add_data(uint32_t data_word)
+      {
+         data.emplace_back(data_word);
       }
       void ls() const
       {

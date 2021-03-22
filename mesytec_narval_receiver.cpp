@@ -146,17 +146,42 @@ void process_block (struct my_struct *,
 void mesytec_mfm_converter::operator()(mesytec::mdpp_event &event)
 {
    // called for each complete event parsed from the mesytec stream
+   //
+   // this builds an MFMFrame for each event and copies it into the output stream,
+   // unless there is no room left in the buffer, in which case it will be treated
+   // the next time that process_block is called
 
-   size_t event_buffer_size = event.size_of_buffer()*4;
+   // 24 bytes for MFM header, plus the Mesytec data buffer
+   size_t mfmeventsize = 24 + event.size_of_buffer()*4;
    // check we still have room in the output buffer
-   if(*used_size_of_output_buffer+event_buffer_size>size_of_output_buffer)
+   if(*used_size_of_output_buffer+mfmeventsize>size_of_output_buffer)
    {
       send_last_event=true;
       throw(std::runtime_error("output buffer full"));
    }
+
+   ///////////////////MFM FRAME CONVERSION////////////////////////////////////
+   mfmevent[0] = 0xc1;  // little-endian, blob frame, unit block size 2 bytes (?)
+   *((uint32_t*)(&mfmevent[1])) = (uint32_t)mfmeventsize/2;// frameSize in unit block size
+   mfmevent[4] = 0x0;  // dataSource
+   *((uint16_t*)(&mfmevent[5])) = 0x4adf; // frame type (0x4adf)
+   mfmevent[7] = 0x00; // frame revision 0
+
+   // next 6 bytes [8]-[13] are for the timestamp - implement when ready
+
+   // bytes [14]-[17]: event number (event counter from mesytec EOE)
+   *((uint32_t*)(&mfmevent[14])) = event.event_counter;
+   // bytes [20]-[23] number of bytes in mesytec data blob
+   *((uint32_t*)(&mfmevent[20])) = (uint32_t)event.size_of_buffer()*4;
+
+   // copy mesytec data into mfm frame 'blob'
+   memcpy(mfmevent+24, event.get_output_buffer().data(), mfmeventsize-24);
+   ///////////////////MFM FRAME CONVERSION////////////////////////////////////
+
    // add frame to output buffer
-   memcpy((unsigned char*)output_buffer + *used_size_of_output_buffer, event.get_output_buffer().data(), event_buffer_size);
-   *used_size_of_output_buffer += event_buffer_size;
+   memcpy((unsigned char*)output_buffer + *used_size_of_output_buffer,
+          mfmevent, mfmeventsize);
+   *used_size_of_output_buffer += mfmeventsize;
 }
 
 /* Functions called on "Stop" */

@@ -12,6 +12,7 @@ struct my_struct
 };
 
 time_t current_time;
+unsigned char mfmevent[0x400000]; // 4 MB buffer
 std::string zmq_port; // passed as algo_path
 zmq::context_t context(1);	// for ZeroMQ communications
 zmq::socket_t *pub;
