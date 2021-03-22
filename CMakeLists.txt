@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.1)
 project(mesytec_data)
 
+include(GNUInstallDirs)
+
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -22,8 +24,26 @@ target_link_libraries(mesytec_narval_receiver mesytec_data ${ZMQ_LIBRARIES})
 #target_link_libraries(test_narval_actor mesytec_narval_receiver)
 
 install(TARGETS mesytec_data read_listfile mesytec_narval_receiver
-    LIBRARY DESTINATION lib
-    RUNTIME DESTINATION bin
+    EXPORT ${CMAKE_PROJECT_NAME}Exports
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+set(CMAKE_INSTALL_PKGINCDIR ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
 install(FILES mesytec_module.h mesytec_data.h mesytec_buffer_reader.h mesytec_narval_receiver.h
-   DESTINATION include/mesytec)
+   DESTINATION ${CMAKE_INSTALL_PKGINCDIR})
+
+#---install cmake stuff for find_package(mesytec_data) for use by other projects
+set(CMAKE_INSTALL_PKGCONFIGDIR ${CMAKE_INSTALL_DATAROOTDIR}/cmake/mesytec_data)
+install(EXPORT ${CMAKE_PROJECT_NAME}Exports
+   DESTINATION ${CMAKE_INSTALL_PKGCONFIGDIR}
+   FILE ${CMAKE_PROJECT_NAME}-targets.cmake
+   )
+include(CMakePackageConfigHelpers)
+configure_package_config_file(${CMAKE_SOURCE_DIR}/mesytec_dataConfig.cmake.in
+                                 ${CMAKE_BINARY_DIR}/mesytec_dataConfig.cmake
+                                 INSTALL_DESTINATION ${CMAKE_INSTALL_PKGCONFIGDIR}
+                                 PATH_VARS CMAKE_INSTALL_PKGINCDIR
+                                 CMAKE_INSTALL_LIBDIR
+                                 CMAKE_INSTALL_PKGCONFIGDIR
+                                 )
+install(FILES ${CMAKE_BINARY_DIR}/mesytec_dataConfig.cmake DESTINATION ${CMAKE_INSTALL_PKGCONFIGDIR})

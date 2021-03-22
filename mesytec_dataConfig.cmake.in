@@ -1,0 +1,24 @@
+#
+#---Config file for mesytec_data to be used with find_package()
+# Usage:
+#  find_package(mesytec_data)
+#  if(mesytec_data_FOUND)
+#     include_directories(${mesytec_data_INCLUDE_DIRS})
+#     target_link_libraries([some target] ${mesytec_data_LIBRARIES})
+#  endif(mesytec_data_FOUND)
+
+@PACKAGE_INIT@
+
+#---set some useful paths
+set_and_check(mesytec_data_INCLUDE_DIRS "@PACKAGE_CMAKE_INSTALL_PKGINCDIR@")
+set_and_check(mesytec_data_LIB_DIR "@PACKAGE_CMAKE_INSTALL_LIBDIR@")
+set_and_check(mesytec_data_CMAKEPKG_DIR "@PACKAGE_CMAKE_INSTALL_PKGCONFIGDIR@")
+
+message(STATUS "Found mesytec_data library in ${mesytec_data_LIB_DIR}")
+
+#---set list of all installed libraries using exported targets
+include(${mesytec_data_CMAKEPKG_DIR}/mesytec_data-targets.cmake)
+set(mesytec_data_LIBRARIES ${mesytec_data_LIB_DIR}/libmesytec_data.so)
+
+#---set installed components
+set(mesytec_data_FOUND TRUE)

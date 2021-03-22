@@ -115,7 +115,11 @@ void process_block (struct my_struct *,
    while( 1 )
    {
       try{
+#if defined (ZMQ_CPP14)
+         if(!pub->recv(event))
+#else
          if(!pub->recv(&event))
+#endif
          {
             std::cout << "Got no event from zeromq" << std::endl;
             break;
