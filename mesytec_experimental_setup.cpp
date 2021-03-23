@@ -1,5 +1,6 @@
 #include "mesytec_experimental_setup.h"
 #include <fstream>
+#include <sstream>
 
 namespace mesytec
 {
@@ -11,8 +12,8 @@ namespace mesytec
       //
       // For example:
       //
-      // MDPP-16 0x0  16  SCP
-      // MDPP-32 0x10 32  QDC
+      // MDPP-16,0x0,16,SCP
+      // MDPP-32,0x10,32,QDC
       //
 
       std::ifstream _mapfile;
@@ -31,14 +32,27 @@ namespace mesytec
       std::vector<module> modules;
       do
       {
-         _mapfile >> name >> modid >> nchan >> firm;
+         std::string dummy;
+         size_t count=0;
+         std::getline(_mapfile,name,',');
+         if(!_mapfile.good()) break;
+         std::getline(_mapfile,dummy,',');
+         modid = std::stoi(dummy,&count,0);
+         std::getline(_mapfile,dummy,',');
+         nchan = std::stoi(dummy);
+         std::getline(_mapfile,firm);
          if(_mapfile.good())
          {
-            crate_map[modid] = {name, modid, nchan, firmwares[firm]};
+            crate_map[modid] = module{name, modid, nchan, firmwares[firm]};
          }
       }
       while(_mapfile.good());
       _mapfile.close();
+
+      for(auto& m : crate_map)
+      {
+         printf("Module id = %#05x  firmware = %d  name = %s\n", m.second.id, m.second.firmware, m.second.name.c_str());
+      }
    }
 
    void experimental_setup::read_detector_correspondence(const std::string &mapfile)
@@ -49,8 +63,8 @@ namespace mesytec
       //
       // For example:
       //
-      // 0x0   0x0    SI_0601
-      // 0x10  0x0    CSI_0601
+      // 0x0,0,SI_0601
+      // 0x10,2,CSI_0603
       //
 
       std::ifstream _mapfile;
@@ -60,11 +74,17 @@ namespace mesytec
          std::cout << "Error in <mesytec::experimental_setup::read_detector_correspondence> : failed to open file "
                    << mapfile << std::endl;
       }
-      std::string detname;
+      std::string detname,dummy;
       uint8_t modid, nchan;
+      size_t count=0;
       do
       {
-         _mapfile >> modid >> nchan >> detname;
+         std::getline(_mapfile,dummy,',');
+         if(!_mapfile.good()) break;
+         modid=std::stoi(dummy,&count,0);
+         std::getline(_mapfile,dummy,',');
+         nchan=std::stoi(dummy);
+         std::getline(_mapfile,detname);
          if(_mapfile.good())
          {
             crate_map[modid].get_channel_map()[nchan] = detname;
@@ -72,5 +92,13 @@ namespace mesytec
       }
       while(_mapfile.good());
       _mapfile.close();
+
+      for(auto& m : crate_map)
+      {
+         for(auto& d : m.second.get_channel_map())
+         {
+            printf("mod=%#x  chan=%d   det=%s\n", m.second.id, d.first, d.second.c_str());
+         }
+      }
    }
 }

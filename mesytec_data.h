@@ -139,7 +139,7 @@ namespace mesytec
          void ls() const
          {
             std::cout << " Event# " << event_counter << std::endl;
-            //for(auto& m: modules) m.ls();
+            for(auto& m: modules) m.ls();
          }
          size_t size_of_buffer() const
          {

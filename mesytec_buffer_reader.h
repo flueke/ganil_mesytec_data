@@ -21,9 +21,14 @@ namespace mesytec
       uint32_t total_number_events_parsed;
       bool stop_processing_flag=false;
    public:
+      buffer_reader() = default;
       buffer_reader(experimental_setup& setup)
          : mesytec_setup{setup}
       {}
+      void define_setup(experimental_setup& setup)
+      {
+         mesytec_setup = setup;
+      }
       template<typename CallbackFunction>
       uint32_t read_buffer(const uint8_t* _buf, size_t nbytes, CallbackFunction F)
       {
@@ -66,7 +71,14 @@ namespace mesytec
             else if(is_mdpp_data(next_word)) {
                if(!got_header) throw(std::runtime_error("Read data without first reading header"));
                reading_data=true;
-               mod_data.add_data(next_word);
+               if(mesytec_setup.is_dummy_setup())
+                   mod_data.add_data(next_word);
+               else
+               {
+                   auto& mod = mesytec_setup.get_module(mod_data.module_id);
+                   mod.set_data_word(next_word);
+                   mod_data.add_data( mod.data_type(), mod.channel_number(), mod.channel_data(), next_word);
+               }
             }
             else if((got_header || reading_data) && is_end_of_event(next_word)) // ignore 2nd, 3rd, ... EOE
             {
