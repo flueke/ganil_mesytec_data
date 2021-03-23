@@ -127,6 +127,7 @@ namespace mesytec
          std::vector<module_data> modules;
          uint32_t event_counter;
 
+         const std::vector<module_data>& get_module_data() const { return modules; }
          event()
          {
             modules.reserve(21); // max number of modules in vme chassis

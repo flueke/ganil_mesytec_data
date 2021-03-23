@@ -29,6 +29,7 @@ namespace mesytec
       {
          mesytec_setup = setup;
       }
+      const experimental_setup& get_setup() const { return mesytec_setup; }
       template<typename CallbackFunction>
       uint32_t read_buffer(const uint8_t* _buf, size_t nbytes, CallbackFunction F)
       {

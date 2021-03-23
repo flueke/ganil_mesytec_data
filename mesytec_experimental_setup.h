@@ -16,7 +16,7 @@ namespace mesytec
  */
    class experimental_setup
    {
-      std::map<uint8_t, module> crate_map; /// map module id to module
+      mutable std::map<uint8_t, module> crate_map; /// map module id to module
       uint8_t total_number_modules;
    public:
       experimental_setup()
@@ -48,14 +48,14 @@ namespace mesytec
       void read_crate_map(const std::string& mapfile);
       void read_detector_correspondence(const std::string& mapfile);
 
-      module& get_module(uint8_t mod_id){ return crate_map[mod_id]; }
+      module& get_module(uint8_t mod_id) const { return crate_map[mod_id]; }
       size_t number_of_modules() const
       {
          return is_dummy_setup() ? total_number_modules : crate_map.size();
       }
 
       /// Get name of detector associated with channel number
-      std::string get_detector(uint8_t modid, uint8_t chan)
+      std::string get_detector(uint8_t modid, uint8_t chan) const
       {
          return crate_map[modid][chan];
       }
