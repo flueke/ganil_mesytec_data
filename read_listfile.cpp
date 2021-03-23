@@ -13,15 +13,14 @@ int main(int, char* argv[])
    int nevents = std::stoi(std::string(argv[2]));
 
    // define all modules in vme crate
-   auto mesytec_setup = mesytec::define_setup
-         (
+   mesytec::experimental_setup mesytec_setup(
             {
                {"MDPP-16", 0x0, 16, mesytec::SCP},
                {"MDPP-32", 0x10, 32, mesytec::SCP}
             }
             );
 
-   int number_of_modules = mesytec_setup.size();
+   auto number_of_modules = mesytec_setup.number_of_modules();
 
    std::ifstream istrm(filename, std::ios::binary);
    if (!istrm.is_open()) {
@@ -86,21 +85,21 @@ int main(int, char* argv[])
          throw(std::runtime_error("data corruption"));
       }
 
-      std::map<uint32_t,mesytec::mdpp_event> event_map;
+      std::map<uint32_t,mesytec::mdpp::event> event_map;
 
       while(nevents--){
          // next_word is header for module data...
-         mesytec::mdpp_module_data mod_data{next_word};
-         auto& module = mesytec_setup[mod_data.module_id];
+         mesytec::mdpp::module_data mod_data{next_word};
+         auto& mmodule = mesytec_setup.get_module(mod_data.module_id);
          auto words_to_read = mod_data.data_words;  // (words_to_read-1) data words + 1 EOE
          bool got_eoe=false;
          while(words_to_read--)
          {
             next_word = mesytec::read_data_word(istrm);
             if(mesytec::is_mdpp_data(next_word)) {
-               module.set_data_word(next_word);
+               mmodule.set_data_word(next_word);
                //module.print_mdpp_data();
-               mod_data.add_data( module.data_type(), module.channel_number(), module.channel_data(), next_word);
+               mod_data.add_data( mmodule.data_type(), mmodule.channel_number(), mmodule.channel_data(), next_word);
             }
             else if(mesytec::is_end_of_event(next_word))
             {
@@ -114,7 +113,7 @@ int main(int, char* argv[])
                   //MTEC.print_eoe(next_word);
                   mod_data.event_counter = mesytec::event_counter(next_word);
                   mod_data.eoe_word = next_word;
-                  mesytec::mdpp_event& event = event_map[mod_data.event_counter];
+                  mesytec::mdpp::event& event = event_map[mod_data.event_counter];
                   event.event_counter = mod_data.event_counter;
                   event.add_module_data(mod_data);
                   if(event.is_full(number_of_modules))
@@ -127,9 +126,9 @@ int main(int, char* argv[])
                      std::cout << "Size of buffer in bytes: " << 4*out_buf.size() << std::endl;
 
                      std::cout << "=====READING FROM BUFFER=====" << std::endl;
-                     mesytec::mesytec_buffer_reader buf_read(mesytec_setup);
+                     mesytec::buffer_reader buf_read(mesytec_setup);
                      buf_read.read_buffer((const uint8_t*)out_buf.data(), 4*out_buf.size(),
-                                           [](mesytec::mdpp_event& Event){ Event.ls(); });
+                                           [](mesytec::mdpp::event& Event){ Event.ls(); });
                      std::cout << "========END OF BUFFER========" << std::endl;
 
                      // delete event after sending/printing

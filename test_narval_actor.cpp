@@ -33,14 +33,14 @@ int main(int argc, char* argv[])
 
    const int bufsize = 400000;
    unsigned char buffer[bufsize];
-   auto mesytec_setup = mesytec::define_setup
+   mesytec::experimental_setup mesytec_setup
          (
             {
                {"MDPP-16", 0x0, 16, mesytec::SCP},
                {"MDPP-32", 0x10, 32, mesytec::SCP}
             }
             );
-   mesytec::mesytec_buffer_reader readBuf{mesytec_setup};
+   mesytec::buffer_reader readBuf{mesytec_setup};
 
    std::ofstream mfmfile("run_0001.dat", std::ios::binary);
 

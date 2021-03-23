@@ -52,16 +52,17 @@ namespace mesytec
       {}
    };
 
-   struct mesytec_module
+   struct module
    {
       std::string name;
       uint8_t id;
       firmware_t firmware;
       uint32_t channel_mask,channel_flag_mask,channel_flag_div;
       uint32_t DATA;
+      std::map<uint8_t,std::string> channel_map;
 
-      mesytec_module() = default;
-      mesytec_module(const std::string& _name, uint8_t _id, uint8_t nchan, firmware_t F)
+      module() = default;
+      module(const std::string& _name, uint8_t _id, uint8_t nchan, firmware_t F)
          : name{_name}, id{_id}, firmware{F}
       {
          if(nchan==16)
@@ -122,9 +123,13 @@ namespace mesytec
          }
          return "unknown";
       }
+      auto& get_channel_map() { return channel_map; }
+
+      /// Get name of detector associated with channel number
+      auto operator[](uint8_t nchan){ return channel_map[nchan]; }
    };
 
-   std::map<uint8_t, mesytec_module> define_setup(std::vector<mesytec_module>&& modules);
+   std::map<uint8_t, module> define_setup(std::vector<module>&& modules);
    uint32_t read_data_word(std::istream& data);
    uint32_t read_data_word(const uint8_t* data);
    bool is_header(uint32_t DATA);

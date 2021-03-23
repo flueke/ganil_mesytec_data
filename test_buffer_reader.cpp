@@ -40,7 +40,7 @@ int main(int argc, char*argv[])
             }
             );
 
-   mesytec::mesytec_buffer_reader readBuf{mesytec_setup};
+   mesytec::buffer_reader readBuf{mesytec_setup};
 
    while(1)
    {

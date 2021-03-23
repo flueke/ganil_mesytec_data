@@ -1,8 +1,8 @@
 #include "mesytec_module.h"
 
-std::map<uint8_t, mesytec::mesytec_module> mesytec::define_setup(std::vector<mesytec::mesytec_module> &&modules)
+std::map<uint8_t, mesytec::module> mesytec::define_setup(std::vector<mesytec::module> &&modules)
 {
-   std::map<uint8_t, mesytec_module> setup;
+   std::map<uint8_t, module> setup;
    for(auto& mod : modules) setup[mod.id] = std::move(mod);
    return setup;
 }

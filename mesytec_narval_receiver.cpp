@@ -29,15 +29,10 @@ void process_initialise (struct my_struct *,
    *error_code = 0;
    send_last_event=false;
 
-   auto mesytec_setup = mesytec::define_setup
-         (
-            {
-               {"MDPP-16", 0x0, 16, mesytec::SCP},
-               {"MDPP-32", 0x10, 32, mesytec::SCP}
-            }
-            );
+   // dummy set up with total number of modules to read in each event
+   mesytec::experimental_setup mesytec_setup(2);
 
-   MESYbuf = new mesytec::mesytec_buffer_reader(mesytec_setup);
+   MESYbuf = new mesytec::buffer_reader(mesytec_setup);
    printf ("\n[MESYTEC] : ***process_initialise*** called\n");
    printf ("[MESYTEC] : new mesytec_buffer_reader intialised = %p\n", MESYbuf);
 }
@@ -181,7 +176,7 @@ void process_block (struct my_struct *,
    //std::cout << "[MESYTEC] : exiting receive-treat loop, " << MESYbuf->get_total_events_parsed() << " events were parsed\n";
 }
 
-void mesytec_mfm_converter::operator()(mesytec::mdpp_event &event)
+void mesytec_mfm_converter::operator()(mesytec::mdpp::event &event)
 {
    // called for each complete event parsed from the mesytec stream
    //
@@ -223,7 +218,7 @@ void mesytec_mfm_converter::operator()(mesytec::mdpp_event &event)
 }
 
 /* Functions called on "Stop" */
-void process_stop (struct my_struct *algo_data,
+void process_stop (struct my_struct *,
                    unsigned int *error_code)
 {
    std::cout << "[MESYTEC] : ***process_stop*** called\n";
@@ -235,7 +230,7 @@ void process_stop (struct my_struct *algo_data,
 
 /* Functions called on "BreakUp"0
     - also called on "Init" if state is "Ready" */
-void process_reset (struct my_struct *algo_data,
+void process_reset (struct my_struct *,
                     unsigned int *error_code)
 {
    std::cout << "[MESYTEC] : ***process_reset*** called\n";

@@ -21,13 +21,13 @@ zmq::socket_t *pub;
 zmq::message_t event;
 bool send_last_event=false;
 uint32_t tot_events_parsed;
-mesytec::mesytec_buffer_reader* MESYbuf=nullptr;
+mesytec::buffer_reader* MESYbuf=nullptr;
 struct mesytec_mfm_converter
 {
    void *output_buffer;
    unsigned int size_of_output_buffer;
    unsigned int *used_size_of_output_buffer;
-   void operator()(mesytec::mdpp_event&);
+   void operator()(mesytec::mdpp::event&);
 };
 
 /* you must have the following symbols */

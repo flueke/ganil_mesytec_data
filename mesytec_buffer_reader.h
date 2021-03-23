@@ -2,16 +2,16 @@
 #define MESYTEC_BUFFER_READER_H
 
 #include "mesytec_data.h"
-
+#include "mesytec_experimental_setup.h"
 #include <assert.h>
 
 namespace mesytec
 {
-   class mesytec_buffer_reader
+   class buffer_reader
    {
-      std::map<uint8_t,mesytec_module> mesytec_setup;
-      std::map<uint32_t,mdpp_event> event_map;
-      mdpp_module_data mod_data;
+      experimental_setup mesytec_setup;
+      std::map<uint32_t,mdpp::event> event_map;
+      mdpp::module_data mod_data;
       bool got_header=false;
       bool reading_data=false;
       bool storing_last_complete_event=false;
@@ -21,7 +21,7 @@ namespace mesytec
       uint32_t total_number_events_parsed;
       bool stop_processing_flag=false;
    public:
-      mesytec_buffer_reader(std::map<uint8_t, mesytec_module> setup)
+      buffer_reader(experimental_setup& setup)
          : mesytec_setup{setup}
       {}
       template<typename CallbackFunction>
@@ -34,7 +34,7 @@ namespace mesytec
          // in the setup given to the constructor) the callback function is called with the event as
          // argument. Suitable signature for callback could be
          //
-         //    void callback((mesytec::mdpp_event& Event);
+         //    void callback((mesytec::mdpp::event& Event);
          //
          // Straight after the call, the event will be deleted, so don't bother keeping a copy of a
          // reference to it, any data must be copied/moved in the callback function.
@@ -51,7 +51,7 @@ namespace mesytec
 
          total_number_events_parsed = 0;
 
-         int number_of_modules = mesytec_setup.size();
+         auto number_of_modules = mesytec_setup.number_of_modules();
          while(words_to_read--)
          {
             auto next_word = read_data_word(buf_pos);
@@ -59,16 +59,14 @@ namespace mesytec
             {
                if(got_header) throw(std::runtime_error("Read another header straight after first"));
                else if(reading_data) throw(std::runtime_error("Read header while reading data, no EOE"));
-               mod_data = mdpp_module_data{next_word};
+               mod_data = mdpp::module_data{next_word};
                got_header = true;
                reading_data = false;
             }
             else if(is_mdpp_data(next_word)) {
                if(!got_header) throw(std::runtime_error("Read data without first reading header"));
                reading_data=true;
-               auto& module = mesytec_setup[mod_data.module_id];
-               module.set_data_word(next_word);
-               mod_data.add_data( module.data_type(), module.channel_number(), module.channel_data(), next_word);
+               mod_data.add_data(next_word);
             }
             else if((got_header || reading_data) && is_end_of_event(next_word)) // ignore 2nd, 3rd, ... EOE
             {
@@ -76,7 +74,7 @@ namespace mesytec
                reading_data=false;
                mod_data.event_counter = event_counter(next_word);
                mod_data.eoe_word = next_word;
-               mdpp_event& event = event_map[mod_data.event_counter];
+               mdpp::event& event = event_map[mod_data.event_counter];
                event.event_counter = mod_data.event_counter;
                event.add_module_data(mod_data);
                // have we received data (at least a header) for every module in the setup?
