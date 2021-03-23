@@ -18,6 +18,8 @@ namespace mesytec
       uint32_t last_complete_event_counter=0;
       uint8_t* buf_pos=nullptr;
       size_t bytes_left_in_buffer=0;
+      uint32_t total_number_events_parsed;
+      bool stop_processing_flag=false;
    public:
       mesytec_buffer_reader(std::map<uint8_t, mesytec_module> setup)
          : mesytec_setup{setup}
@@ -47,7 +49,7 @@ namespace mesytec
          buf_pos = const_cast<uint8_t*>(_buf);
          bytes_left_in_buffer = nbytes;
 
-         uint32_t total_number_events_parsed = 0;
+         total_number_events_parsed = 0;
 
          int number_of_modules = mesytec_setup.size();
          while(words_to_read--)
@@ -99,6 +101,7 @@ namespace mesytec
          }
          return total_number_events_parsed;
       }
+      uint32_t get_total_events_parsed() const { return total_number_events_parsed; }
       bool is_storing_last_complete_event() const { return storing_last_complete_event; }
       template<typename CallbackFunction>
       void cleanup_last_complete_event(CallbackFunction F)
@@ -115,6 +118,9 @@ namespace mesytec
       }
       uint8_t* get_buffer_position() const { return buf_pos; }
       size_t get_remaining_bytes_in_buffer() const { return bytes_left_in_buffer; }
+      void stop() { stop_processing_flag=true; }
+      void go() { stop_processing_flag=false; }
+      bool can_process() const { return !stop_processing_flag; }
    };
 }
 #endif // MESYTEC_BUFFER_READER_H

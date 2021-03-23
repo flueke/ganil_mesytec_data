@@ -12,13 +12,15 @@ struct my_struct
 };
 
 time_t current_time;
+const int status_update_interval=5; // print infos every x seconds
+const int max_iterations_of_parse_loop=10; // avoid infinite loop!
 unsigned char mfmevent[0x400000]; // 4 MB buffer
 std::string zmq_port; // passed as algo_path
 zmq::context_t context(1);	// for ZeroMQ communications
 zmq::socket_t *pub;
 zmq::message_t event;
 bool send_last_event=false;
-uint64_t need_more_data,output_buffer_full;
+uint32_t tot_events_parsed;
 mesytec::mesytec_buffer_reader* MESYbuf=nullptr;
 struct mesytec_mfm_converter
 {

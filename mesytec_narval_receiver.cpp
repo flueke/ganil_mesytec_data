@@ -4,8 +4,8 @@
 /* Functions called on "Init" */
 void process_config (char *directory_path, unsigned int *error_code)
 {
-   printf ("\nMESYTEC-receiver::process_config\n");
-   printf ("MESYTECSpy port = %s\n",directory_path);
+   printf ("\n[MESYTEC] : ***process_config*** called\n");
+   printf ("[MESYTEC] : MESYTECSpy port = %s\n",directory_path);
    zmq_port = directory_path;
    *error_code = 0;
 }
@@ -38,35 +38,39 @@ void process_initialise (struct my_struct *,
             );
 
    MESYbuf = new mesytec::mesytec_buffer_reader(mesytec_setup);
+   printf ("\n[MESYTEC] : ***process_initialise*** called\n");
+   printf ("[MESYTEC] : new mesytec_buffer_reader intialised = %p\n", MESYbuf);
 }
 
 /* Functions called on "Start" */
 void process_start (struct my_struct *,
                     unsigned int *error_code)
 {
-   need_more_data=output_buffer_full=0;
+   std::cout << "[MESYTEC] : ***process_start*** called\n";
 
    // start zmq receiver here (probably)
    try {
       pub = new zmq::socket_t(context, ZMQ_SUB);
    } catch (zmq::error_t &e) {
-      std::cout << "ERROR: " << "process_start: failed to start ZeroMQ event spy: " << e.what () << std::endl;
+      std::cout << "[MESYTEC] : ERROR: " << "process_start: failed to start ZeroMQ event spy: " << e.what () << std::endl;
    }
 
-   int timeout=500;//milliseconds
+   int timeout=100;//milliseconds
    pub->setsockopt(ZMQ_RCVTIMEO, &timeout, sizeof(int));
    try {
       pub->connect(zmq_port.c_str());
    } catch (zmq::error_t &e) {
-      std::cout << "ERROR" << "process_start: failed to bind ZeroMQ endpoint " << zmq_port << ": " << e.what () << std::endl;
+      std::cout << "[MESYTEC] : ERROR" << "process_start: failed to bind ZeroMQ endpoint " << zmq_port << ": " << e.what () << std::endl;
    }
-   std::cout << "Connected to MESYTECSpy " << zmq_port << std::endl;
+   std::cout << "[MESYTEC] : Connected to MESYTECSpy " << zmq_port << std::endl;
    pub->setsockopt(ZMQ_SUBSCRIBE, "", 0);
 
    time(&current_time);
    struct tm * timeinfo = localtime (&current_time);
-   printf ("MESYTEC-receiver beginning at: %s", asctime(timeinfo));
+   printf ("[MESYTEC] : MESYTEC-receiver beginning at: %s", asctime(timeinfo));
    *error_code = 0;
+
+   tot_events_parsed=0;
 }
 
 void process_block (struct my_struct *,
@@ -75,6 +79,7 @@ void process_block (struct my_struct *,
                     unsigned int *used_size_of_output_buffer,
                     unsigned int *error_code)
 {
+   //std::cout << "[MESYTEC] : ***process_block*** called\n";
    *used_size_of_output_buffer =   0;
    *error_code = 0;
 
@@ -85,12 +90,15 @@ void process_block (struct my_struct *,
    if(MESYbuf->is_storing_last_complete_event())
    {
       // put event in output buffer
+      //std::cout << "[MESYTEC] : sending event from last buffer\n";
       MESYbuf->cleanup_last_complete_event(CONVERTER);
+      ++tot_events_parsed;
    }
    // check if previous call read to the end of the last buffer read from ZMQ
    if(MESYbuf->get_remaining_bytes_in_buffer()>0)
    {
       // continue parsing old buffer, start after end of last event
+      //std::cout << "[MESYTEC] : continuing to treat last buffer\n";
       try
       {
          MESYbuf->read_buffer(
@@ -106,13 +114,20 @@ void process_block (struct my_struct *,
             std::cout << "Got unknown exception from MESYTEC converter: " << what << std::endl;
             throw(e);
          }
-         else
+         else {
+            tot_events_parsed+=MESYbuf->get_total_events_parsed();
             return; // output buffer is full
+         }
       }
+      tot_events_parsed+=MESYbuf->get_total_events_parsed();
    }
    // now begin loop receiving buffers from ZMQ, parsing & filling output buffer
    // until it is full
-   while( 1 )
+   uint32_t events_treated=0;
+   //std::cout << "[MESYTEC] : beginning receive-treat loop\n";
+
+   int iterations = max_iterations_of_parse_loop;
+   while( iterations-- )
    {
       try{
 #if defined (ZMQ_CPP14)
@@ -121,30 +136,49 @@ void process_block (struct my_struct *,
          if(!pub->recv(&event))
 #endif
          {
-            std::cout << "Got no event from zeromq" << std::endl;
+            //std::cout << "[MESYTEC] : Got no event from zeromq" << std::endl;
             break;
          }
       }
       catch(zmq::error_t &e) {
-         std::cout << "timeout on ZeroMQ endpoint: " << e.what () << std::endl;
+         std::cout << "[MESYTEC] : timeout on ZeroMQ endpoint: " << e.what () << std::endl;
          break;
       }
       try
       {
-         MESYbuf->read_buffer((const uint8_t*)event.data(), event.size(), CONVERTER);
+         events_treated = MESYbuf->read_buffer((const uint8_t*)event.data(), event.size(), CONVERTER);
       }
       catch (std::exception& e)
       {
          std::string what{ e.what() };
          if(!send_last_event)
          {
-            std::cout << "Got unknown exception from MESYTEC converter: " << what << std::endl;
+            std::cout << "[MESYTEC] : Got unknown exception from MESYTEC converter: " << what << std::endl;
             throw(e);
          }
-         else
+         else {
+            //std::cout << "[MESYTEC] : Buffer full after treating " << MESYbuf->get_total_events_parsed() << " events\n";
+            tot_events_parsed+=MESYbuf->get_total_events_parsed();
             break; // output buffer is full
+         }
       }
+      tot_events_parsed+=MESYbuf->get_total_events_parsed();
+      //std::cout << "[MESYTEC] : Treated " << events_treated << " events without filling buffer...\n";
    } // while(1)
+   time_t t;
+   time(&t);
+   double time_elapsed=difftime(t,current_time);
+   if(time_elapsed>=status_update_interval)
+   {
+      // print infos every x seconds (defined in Merger.conf by 'Status_Update_Interval' line)
+      current_time=t;
+      struct tm * timeinfo = localtime (&current_time);
+      std::string now = asctime(timeinfo);
+      now.erase(now.size()-1);//remove new line character
+      std::cout << "[MESYTEC] : " << now << " : parse rate " << tot_events_parsed/time_elapsed << " evt./sec...\n";
+      tot_events_parsed=0;
+   }
+   //std::cout << "[MESYTEC] : exiting receive-treat loop, " << MESYbuf->get_total_events_parsed() << " events were parsed\n";
 }
 
 void mesytec_mfm_converter::operator()(mesytec::mdpp_event &event)
@@ -192,9 +226,11 @@ void mesytec_mfm_converter::operator()(mesytec::mdpp_event &event)
 void process_stop (struct my_struct *algo_data,
                    unsigned int *error_code)
 {
+   std::cout << "[MESYTEC] : ***process_stop*** called\n";
    // delete zmq server here (probably)...
    pub->close();
    *error_code = 0;
+   std::cout << "[MESYTEC] : shut down of ZMQ socket\n";
 }
 
 /* Functions called on "BreakUp"0
@@ -202,6 +238,7 @@ void process_stop (struct my_struct *algo_data,
 void process_reset (struct my_struct *algo_data,
                     unsigned int *error_code)
 {
+   std::cout << "[MESYTEC] : ***process_reset*** called\n";
    *error_code = 0;
 
    delete MESYbuf;
@@ -210,6 +247,7 @@ void process_reset (struct my_struct *algo_data,
 void process_unload (struct my_struct *algo_data,
                      unsigned int *error_code)
 {
+   std::cout << "[MESYTEC] : ***process_unload*** called\n";
    if(algo_data)
    {
       free(algo_data);
@@ -223,12 +261,14 @@ void process_unload (struct my_struct *algo_data,
 void process_pause (struct my_struct *,
                     unsigned int *error_code)
 {
+   std::cout << "[MESYTEC] : ***process_pause*** called\n";
    /* put your code here */
    *error_code = 0;
 }
 void process_resume (struct my_struct *,
                      unsigned int *error_code)
 {
+   std::cout << "[MESYTEC] : ***process_resume*** called\n";
    /* put your code here */
    *error_code = 0;
 }
