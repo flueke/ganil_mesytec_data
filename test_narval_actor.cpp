@@ -3,7 +3,7 @@
 #include <chrono>
 #include <thread>
 #include <fstream>
-using namespace std::chrono_literals;
+//using namespace std::chrono_literals;
 
 int main(int argc, char* argv[])
 {
@@ -62,7 +62,8 @@ int main(int argc, char* argv[])
 
       if(buff_used) mfmfile.write(reinterpret_cast<char*>(buffer), buff_used);
 
-      std::this_thread::sleep_for(1000ms);
+      std::chrono::milliseconds dodo(1000);
+      std::this_thread::sleep_for(dodo);
    }
 
    mfmfile.close();

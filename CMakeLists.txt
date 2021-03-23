@@ -20,10 +20,10 @@ include_directories(${ZMQ_INCLUDE_DIRS})
 
 add_library(mesytec_narval_receiver SHARED mesytec_narval_receiver.cpp)
 target_link_libraries(mesytec_narval_receiver mesytec_data ${ZMQ_LIBRARIES})
-#add_executable(test_narval_actor test_narval_actor.cpp)
-#target_link_libraries(test_narval_actor mesytec_narval_receiver)
+add_executable(test_narval_actor test_narval_actor.cpp)
+target_link_libraries(test_narval_actor mesytec_narval_receiver)
 
-install(TARGETS mesytec_data read_listfile mesytec_narval_receiver
+install(TARGETS mesytec_data read_listfile mesytec_narval_receiver test_narval_actor
     EXPORT ${CMAKE_PROJECT_NAME}Exports
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
