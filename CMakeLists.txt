@@ -29,7 +29,7 @@ install(TARGETS mesytec_data read_listfile mesytec_narval_receiver test_narval_a
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 set(CMAKE_INSTALL_PKGINCDIR ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
-install(FILES mesytec_module.h mesytec_data.h mesytec_buffer_reader.h mesytec_narval_receiver.h
+install(FILES mesytec_module.h mesytec_data.h mesytec_buffer_reader.h mesytec_narval_receiver.h mesytec_experimental_setup.h
    DESTINATION ${CMAKE_INSTALL_PKGINCDIR})
 
 #---install cmake stuff for find_package(mesytec_data) for use by other projects
