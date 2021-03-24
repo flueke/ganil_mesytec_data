@@ -96,7 +96,7 @@ void process_block (struct my_struct *,
       //std::cout << "[MESYTEC] : continuing to treat last buffer\n";
       try
       {
-         MESYbuf->read_buffer(
+         MESYbuf->read_buffer_collate_events(
                   (const uint8_t*)MESYbuf->get_buffer_position(),
                   MESYbuf->get_remaining_bytes_in_buffer(),
                   CONVERTER);
@@ -141,7 +141,7 @@ void process_block (struct my_struct *,
       }
       try
       {
-         events_treated = MESYbuf->read_buffer((const uint8_t*)event.data(), event.size(), CONVERTER);
+         events_treated = MESYbuf->read_buffer_collate_events((const uint8_t*)event.data(), event.size(), CONVERTER);
       }
       catch (std::exception& e)
       {

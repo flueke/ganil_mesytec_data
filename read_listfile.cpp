@@ -127,7 +127,7 @@ int main(int, char* argv[])
 
                      std::cout << "=====READING FROM BUFFER=====" << std::endl;
                      mesytec::buffer_reader buf_read(mesytec_setup);
-                     buf_read.read_buffer((const uint8_t*)out_buf.data(), 4*out_buf.size(),
+                     buf_read.read_event_in_buffer((const uint8_t*)out_buf.data(), 4*out_buf.size(),
                                            [](mesytec::mdpp::event& Event){ Event.ls(); });
                      std::cout << "========END OF BUFFER========" << std::endl;
 
