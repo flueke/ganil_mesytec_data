@@ -123,10 +123,10 @@ namespace mesytec
          }
          return "unknown";
       }
-      auto& get_channel_map() { return channel_map; }
+      std::map<uint8_t,std::string>& get_channel_map() { return channel_map; }
 
       /// Get name of detector associated with channel number
-      auto operator[](uint8_t nchan){ return channel_map[nchan]; }
+      std::string operator[](uint8_t nchan){ return channel_map[nchan]; }
    };
 
    std::map<uint8_t, module> define_setup(std::vector<module>&& modules);
