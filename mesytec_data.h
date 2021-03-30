@@ -59,6 +59,16 @@ namespace mesytec
          uint8_t module_id;
          uint32_t eoe_word;
 
+         void clear()
+         {
+            data.clear();
+            event_counter=0;
+            header_word=0;
+            data_words=0;
+            module_id=0;
+            eoe_word=0;
+         }
+
          module_data(uint32_t _header_word)
             : header_word{_header_word}, data_words{length_of_data(_header_word)},
               module_id{mesytec::module_id(_header_word)}

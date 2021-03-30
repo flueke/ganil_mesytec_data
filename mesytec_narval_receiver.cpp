@@ -104,14 +104,16 @@ void process_block (struct my_struct *,
       catch (std::exception& e)
       {
          std::string what{ e.what() };
-         if(!send_last_event)
+         if(!send_last_event) // error parsing buffer
          {
-            std::cout << "Got unknown exception from MESYTEC converter: " << what << std::endl;
-            throw(e);
+            std::cout << "[MESYTEC] : Error parsing Mesytec buffer : " << what << std::endl;
+            // abandon buffer & try next one
+            MESYbuf->reset();
+            return;
          }
-         else {
+         else { // output buffer is full
             tot_events_parsed+=MESYbuf->get_total_events_parsed();
-            return; // output buffer is full
+            return;
          }
       }
       tot_events_parsed+=MESYbuf->get_total_events_parsed();
@@ -146,12 +148,14 @@ void process_block (struct my_struct *,
       catch (std::exception& e)
       {
          std::string what{ e.what() };
-         if(!send_last_event)
+         if(!send_last_event) // error parsing buffer
          {
-            std::cout << "[MESYTEC] : Got unknown exception from MESYTEC converter: " << what << std::endl;
-            throw(e);
+            std::cout << "[MESYTEC] : Error parsing Mesytec buffer : " << what << std::endl;
+            // abandon buffer & try next one
+            MESYbuf->reset();
+            return;
          }
-         else {
+         else { // output buffer is full
             //std::cout << "[MESYTEC] : Buffer full after treating " << MESYbuf->get_total_events_parsed() << " events\n";
             tot_events_parsed+=MESYbuf->get_total_events_parsed();
             break; // output buffer is full

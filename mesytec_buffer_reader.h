@@ -19,8 +19,21 @@ namespace mesytec
       uint8_t* buf_pos=nullptr;
       size_t bytes_left_in_buffer=0;
       uint32_t total_number_events_parsed;
-      bool stop_processing_flag=false;
    public:
+      void reset()
+      {
+         // reset buffer reader to initial state, before reading any buffers
+         event_map.clear();
+         mod_data.clear();
+         got_header=false;
+         reading_data=false;
+         storing_last_complete_event=false;
+         last_complete_event_counter=0;
+         buf_pos=nullptr;
+         bytes_left_in_buffer=0;
+         total_number_events_parsed=0;
+      }
+
       buffer_reader() = default;
       buffer_reader(experimental_setup& setup)
          : mesytec_setup{setup}
@@ -191,9 +204,6 @@ namespace mesytec
       }
       uint8_t* get_buffer_position() const { return buf_pos; }
       size_t get_remaining_bytes_in_buffer() const { return bytes_left_in_buffer; }
-      void stop() { stop_processing_flag=true; }
-      void go() { stop_processing_flag=false; }
-      bool can_process() const { return !stop_processing_flag; }
    };
 }
 #endif // MESYTEC_BUFFER_READER_H
