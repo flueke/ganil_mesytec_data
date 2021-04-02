@@ -5,6 +5,8 @@
 #include <vector>
 #include <iostream>
 #include <map>
+#include <unordered_map>
+#include <string>
 
 namespace mesytec
 {
@@ -51,6 +53,13 @@ namespace mesytec
          : std::runtime_error(what)
       {}
    };
+
+   static std::map<std::string,std::string> data_type_aliases
+   = {
+     {"qdc_long", "qdc_long"}, {"adc", "adc"}, {"tdc", "tdc"}, {"trig","trig"},{"qdc_short","qdc_short"}
+   };
+   /// Change the name of an existing data type
+   void set_data_type_alias(const std::string& type, const std::string& alias);
 
    struct module
    {
@@ -113,16 +122,17 @@ namespace mesytec
          switch(channel_flags())
          {
          case 0:
-            return firmware==QDC ? "qdc_long" : "adc";
+            return firmware==QDC ? data_type_aliases["qdc_long"] : data_type_aliases["adc"];
          case 1:
-            return "tdc";
+            return data_type_aliases["tdc"];
          case 2:
-            return "trig";
+            return data_type_aliases["trig"];
          case 3:
-            return "qdc_short";
+            return data_type_aliases["qdc_short"];
          }
          return "unknown";
       }
+
       std::map<uint8_t,std::string>& get_channel_map() { return channel_map; }
 
       /// Get name of detector associated with channel number
