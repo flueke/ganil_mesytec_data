@@ -54,13 +54,6 @@ namespace mesytec
       {}
    };
 
-   static std::map<std::string,std::string> data_type_aliases
-   = {
-     {"qdc_long", "qdc_long"}, {"adc", "adc"}, {"tdc", "tdc"}, {"trig","trig"},{"qdc_short","qdc_short"}
-   };
-   /// Change the name of an existing data type
-   void set_data_type_alias(const std::string& type, const std::string& alias);
-
    struct module
    {
       std::string name;
@@ -69,6 +62,13 @@ namespace mesytec
       uint32_t channel_mask,channel_flag_mask,channel_flag_div;
       uint32_t DATA;
       std::map<uint8_t,std::string> channel_map;
+
+      static std::unordered_map<std::string,std::string> data_type_aliases;
+      /// Change the name of an existing data type
+      static void set_data_type_alias(const std::string& type, const std::string& alias)
+      {
+         data_type_aliases[type]=alias;
+      }
 
       module() = default;
       module(const std::string& _name, uint8_t _id, uint8_t nchan, firmware_t F)

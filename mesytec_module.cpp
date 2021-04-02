@@ -1,9 +1,9 @@
 #include "mesytec_module.h"
 
-void mesytec::set_data_type_alias(const std::string& type, const std::string& alias)
-{
-   data_type_aliases[type]=alias;
-}
+std::unordered_map<std::string,std::string> mesytec::module::data_type_aliases
+      = {
+        {"qdc_long", "qdc_long"}, {"adc", "adc"}, {"tdc", "tdc"}, {"trig","trig"},{"qdc_short","qdc_short"}
+      };
 
 std::map<uint8_t, mesytec::module> mesytec::define_setup(std::vector<mesytec::module> &&modules)
 {
