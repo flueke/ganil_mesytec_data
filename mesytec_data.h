@@ -12,6 +12,8 @@ namespace mesytec
 {
    namespace mdpp
    {
+      const uint16_t mfm_frame_type = 0x4adf;
+
       struct channel_data
       {
          std::string data_type; /// "adc", "tdc", "qdc_short", "qdc_long", "trig0", "trig1"

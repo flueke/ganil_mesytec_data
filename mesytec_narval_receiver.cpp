@@ -201,7 +201,7 @@ void mesytec_mfm_converter::operator()(mesytec::mdpp::event &event)
    mfmevent[0] = 0xc1;  // little-endian, blob frame, unit block size 2 bytes (?)
    *((uint32_t*)(&mfmevent[1])) = (uint32_t)mfmeventsize/2;// frameSize in unit block size
    mfmevent[4] = 0x0;  // dataSource
-   *((uint16_t*)(&mfmevent[5])) = 0x4adf; // frame type (0x4adf)
+   *((uint16_t*)(&mfmevent[5])) = mesytec::mdpp::mfm_frame_type; // frame type
    mfmevent[7] = 0x00; // frame revision 0
 
    // next 6 bytes [8]-[13] are for the timestamp - implement when ready
