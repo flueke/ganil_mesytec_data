@@ -4,9 +4,11 @@
 /* Functions called on "Init" */
 void process_config (char *directory_path, unsigned int *error_code)
 {
+   number_of_modules = directory_path;
    printf ("\n[MESYTEC] : ***process_config*** called\n");
-   printf ("[MESYTEC] : MESYTECSpy port = %s\n",directory_path);
-   zmq_port = directory_path;
+   zmq_port = "tcp://mesytecPC:5575";
+   printf ("[MESYTEC] : MESYTECSpy port = %s\n",zmq_port.c_str());
+   printf ("[MESYTEC] :  - expected number of modules = %s\n", number_of_modules.c_str());
    *error_code = 0;
 }
 
@@ -27,10 +29,9 @@ void process_initialise (struct my_struct *,
 {
    /* put your code here */
    *error_code = 0;
-   send_last_event=false;
 
    // dummy set up with total number of modules to read in each event
-   mesytec::experimental_setup mesytec_setup(2);
+   mesytec::experimental_setup mesytec_setup( std::atoi(number_of_modules.c_str()));
 
    MESYbuf = new mesytec::buffer_reader(mesytec_setup);
    printf ("\n[MESYTEC] : ***process_initialise*** called\n");
@@ -78,6 +79,8 @@ void process_block (struct my_struct *,
    *used_size_of_output_buffer =   0;
    *error_code = 0;
 
+   output_buffer_is_full = false;
+
    mesytec_mfm_converter CONVERTER{output_buffer,size_of_output_buffer,used_size_of_output_buffer};
 
    // previous call ended because output buffer was full before we finished parsing events in
@@ -93,7 +96,7 @@ void process_block (struct my_struct *,
    if(MESYbuf->get_remaining_bytes_in_buffer()>0)
    {
       // continue parsing old buffer, start after end of last event
-      //std::cout << "[MESYTEC] : continuing to treat last buffer\n";
+      //std::cout << "[MESYTEC] : continuing to treat last buffer - bytes remaining " << MESYbuf->get_remaining_bytes_in_buffer() << "\n";
       try
       {
          MESYbuf->read_buffer_collate_events(
@@ -104,7 +107,7 @@ void process_block (struct my_struct *,
       catch (std::exception& e)
       {
          std::string what{ e.what() };
-         if(!send_last_event) // error parsing buffer
+         if(!output_buffer_is_full) // error parsing buffer
          {
             std::cout << "[MESYTEC] : Error parsing Mesytec buffer : " << what << std::endl;
             // abandon buffer & try next one
@@ -112,6 +115,8 @@ void process_block (struct my_struct *,
             return;
          }
          else { // output buffer is full
+            //std::cout << "[MESYTEC] : output buffer is full after parsing " << MESYbuf->get_total_events_parsed() << " events\n";
+            //std::cout << "[MESYTEC] : Used size of buffer = " << *used_size_of_output_buffer << "\n";
             tot_events_parsed+=MESYbuf->get_total_events_parsed();
             return;
          }
@@ -141,6 +146,7 @@ void process_block (struct my_struct *,
          std::cout << "[MESYTEC] : timeout on ZeroMQ endpoint: " << e.what () << std::endl;
          break;
       }
+      //std::cout << "[MESYTEC] : Received buffer of " << event.size() << " bytes from MVLC\n";
       try
       {
          events_treated = MESYbuf->read_buffer_collate_events((const uint8_t*)event.data(), event.size(), CONVERTER);
@@ -148,7 +154,7 @@ void process_block (struct my_struct *,
       catch (std::exception& e)
       {
          std::string what{ e.what() };
-         if(!send_last_event) // error parsing buffer
+         if(!output_buffer_is_full) // error parsing buffer
          {
             std::cout << "[MESYTEC] : Error parsing Mesytec buffer : " << what << std::endl;
             // abandon buffer & try next one
@@ -157,6 +163,7 @@ void process_block (struct my_struct *,
          }
          else { // output buffer is full
             //std::cout << "[MESYTEC] : Buffer full after treating " << MESYbuf->get_total_events_parsed() << " events\n";
+            //std::cout << "[MESYTEC] : Used size of buffer = " << *used_size_of_output_buffer << "\n";
             tot_events_parsed+=MESYbuf->get_total_events_parsed();
             break; // output buffer is full
          }
@@ -193,7 +200,7 @@ void mesytec_mfm_converter::operator()(mesytec::mdpp::event &event)
    // check we still have room in the output buffer
    if(*used_size_of_output_buffer+mfmeventsize>size_of_output_buffer)
    {
-      send_last_event=true;
+      output_buffer_is_full=true;
       throw(std::runtime_error("output buffer full"));
    }
 
