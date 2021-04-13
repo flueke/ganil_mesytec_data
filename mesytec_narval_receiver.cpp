@@ -212,6 +212,8 @@ void mesytec_mfm_converter::operator()(mesytec::mdpp::event &event)
    mfmevent[7] = 0x00; // frame revision 0
 
    // next 6 bytes [8]-[13] are for the timestamp - implement when ready
+   // for the moment, copy the (30-bit) Mesytec timestamp/event counter
+   *((uint32_t*)(&mfmevent[8])) = event.event_counter;
 
    // bytes [14]-[17]: event number (event counter from mesytec EOE)
    *((uint32_t*)(&mfmevent[14])) = event.event_counter;
