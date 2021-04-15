@@ -139,6 +139,11 @@ namespace mesytec
          std::vector<module_data> modules;
          uint32_t event_counter;
 
+         void clear()
+         {
+            modules.clear();
+            event_counter=0;
+         }
          const std::vector<module_data>& get_module_data() const { return modules; }
          event()
          {
