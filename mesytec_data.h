@@ -118,19 +118,17 @@ namespace mesytec
             // reconstruct mesytec data buffer for this module i.e. series of 32 bit words
             //  HEADER - N x DATA - EOE  (in total, N+2 words)
             //
-            // if no data words are present for the module, no data is added to the buffer.
-            if(data.size()){
-               buf.push_back(header_word);
-               for(auto& v: data) v.add_data_to_buffer(buf);
-               buf.push_back(eoe_word);
-            }
+            // if no data words are present for the module, only header & EoE
+            buf.push_back(header_word);
+            for(auto& v: data) v.add_data_to_buffer(buf);
+            buf.push_back(eoe_word);
          }
          size_t size_of_buffer() const
          {
             // returns size (in 4-byte words) of buffer required to hold all data for this module
             //
-            // if no data words are present for the module, this is zero.
-            return data.size() ? data.size()+2 : 0;
+            // if no data words are present for the module, this is 2 (header + EoE)
+            return data.size() ? data.size()+2 : 2;
          }
       };
 
