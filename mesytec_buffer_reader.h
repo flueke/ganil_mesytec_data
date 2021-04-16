@@ -10,7 +10,7 @@ namespace mesytec
    class buffer_reader
    {
       experimental_setup mesytec_setup;
-      std::map<uint32_t,mdpp::event> event_map;
+      mdpp::event event;
       mdpp::module_data mod_data;
       bool got_header=false;
       bool reading_data=false;
@@ -23,7 +23,7 @@ namespace mesytec
       void reset()
       {
          // reset buffer reader to initial state, before reading any buffers
-         event_map.clear();
+         event.clear();
          mod_data.clear();
          got_header=false;
          reading_data=false;
@@ -73,7 +73,10 @@ namespace mesytec
 
          total_number_events_parsed = 0;
 
-         auto number_of_modules = mesytec_setup.number_of_modules();
+         auto is_mdpp16 = [](const mdpp::module_data& md){ return md.module_id==0x0; };
+         auto is_mdpp32 = [](const mdpp::module_data& md){ return md.module_id==0x10; };
+         bool got_mdpp16{false},got_mdpp32{false};
+
          while(words_to_read--)
          {
             auto next_word = read_data_word(buf_pos);
@@ -82,20 +85,19 @@ namespace mesytec
                if(got_header) throw(std::runtime_error("Read another header straight after first"));
                else if(reading_data) throw(std::runtime_error("Read header while reading data, no EOE"));
                mod_data = mdpp::module_data{next_word};
+               if(is_mdpp32(mod_data)&&(got_mdpp16||got_mdpp32))
+                  throw(std::runtime_error("Got MDPP32 data after either MDPP16 or MDPP32 data"));
+               if(is_mdpp16(mod_data)&&!got_mdpp32)
+                  throw(std::runtime_error("Got MDPP16 data without first reading MDPP32 data"));
+               if(is_mdpp16(mod_data)) got_mdpp16=true;
+               else if(is_mdpp32(mod_data)) got_mdpp32=true;
                got_header = true;
                reading_data = false;
             }
             else if(is_mdpp_data(next_word)) {
                if(!got_header) throw(std::runtime_error("Read data without first reading header"));
                reading_data=true;
-               if(mesytec_setup.is_dummy_setup())
-                   mod_data.add_data(next_word);
-               else
-               {
-                   auto& mod = mesytec_setup.get_module(mod_data.module_id);
-                   mod.set_data_word(next_word);
-                   mod_data.add_data( mod.data_type(), mod.channel_number(), mod.channel_data(), next_word);
-               }
+               mod_data.add_data(next_word);
             }
             else if((got_header || reading_data) && is_end_of_event(next_word)) // ignore 2nd, 3rd, ... EOE
             {
@@ -103,23 +105,22 @@ namespace mesytec
                reading_data=false;
                mod_data.event_counter = event_counter(next_word);
                mod_data.eoe_word = next_word;
-               mdpp::event& event = event_map[mod_data.event_counter];
-               event.event_counter = mod_data.event_counter;
+
+               if(got_mdpp32 && !got_mdpp16) event.event_counter = mod_data.event_counter;
                event.add_module_data(mod_data);
                // have we received data (at least a header) for every module in the setup?
                // if so then the event is complete and can be encapsulated in an MFMFrame (for example)
-               if(event.is_full(number_of_modules))
+               if(got_mdpp16 && got_mdpp32)
                {
                   // store event counter in case callback function 'aborts' (output buffer full)
                   // and we have to keep the event for later
                   storing_last_complete_event=true;
-                  last_complete_event_counter=event.event_counter;
                   // call callback function
                   F(event);
                   storing_last_complete_event=false;// successful callback
-                  // delete event after sending/encapsulating
-                  auto it = event_map.find(event.event_counter);
-                  event_map.erase(it);
+                  // reset event after sending/encapsulating
+                  event.clear();
+                  got_mdpp16=got_mdpp32=false;
                   ++total_number_events_parsed;
                }
             }
@@ -179,8 +180,6 @@ namespace mesytec
                reading_data=false;
                mod_data.event_counter = event_counter(next_word);
                mod_data.eoe_word = next_word;
-               // sanity check: all must have same event counter
-               if(event.get_module_data().size()) assert(event.event_counter==mod_data.event_counter);
                event.event_counter = mod_data.event_counter;
                event.add_module_data(mod_data);
             }
@@ -194,12 +193,10 @@ namespace mesytec
       template<typename CallbackFunction>
       void cleanup_last_complete_event(CallbackFunction F)
       {
-         // find last complete event in map
-         auto it = event_map.find(last_complete_event_counter);
-         // call user function for event
-         F((*it).second);
-         // erase event
-         event_map.erase(it);
+         // call user function for event saved from last time
+         F(event);
+         // reset event
+         event.clear();
          storing_last_complete_event=false;
          // advance position in buffer
          buf_pos+=4;
