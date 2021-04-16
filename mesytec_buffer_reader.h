@@ -203,7 +203,6 @@ namespace mesytec
       }
       uint8_t* get_buffer_position() const { return buf_pos; }
       size_t get_remaining_bytes_in_buffer() const { return bytes_left_in_buffer; }
-      size_t get_event_map_size() const { return event_map.size(); }
    };
 }
 #endif // MESYTEC_BUFFER_READER_H
