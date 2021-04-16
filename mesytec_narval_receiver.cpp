@@ -181,7 +181,8 @@ void process_block (struct my_struct *,
       struct tm * timeinfo = localtime (&current_time);
       std::string now = asctime(timeinfo);
       now.erase(now.size()-1);//remove new line character
-      std::cout << "[MESYTEC] : " << now << " : parse rate " << tot_events_parsed/time_elapsed << " evt./sec...\n";
+      std::cout << "[MESYTEC] : " << now << " : parse rate " << tot_events_parsed/time_elapsed << " evt./sec...";
+      std::cout << " [" << MESYbuf->get_event_map_size() << " partial events still in map...]\n";
       tot_events_parsed=0;
    }
    //std::cout << "[MESYTEC] : exiting receive-treat loop, " << MESYbuf->get_total_events_parsed() << " events were parsed\n";

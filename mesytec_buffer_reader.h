@@ -157,6 +157,8 @@ namespace mesytec
             if(is_header(next_word))
             {
                mod_data = mdpp::module_data{next_word};
+               // in principle maximum event size is 255 32-bit words i.e. 1 header + 254 following words
+               if(mod_data.data_words>=254) std::cerr << "Header indicates " << mod_data.data_words << " words in this event..." << std::endl;
                got_header = true;
                reading_data = false;
             }
@@ -204,6 +206,7 @@ namespace mesytec
       }
       uint8_t* get_buffer_position() const { return buf_pos; }
       size_t get_remaining_bytes_in_buffer() const { return bytes_left_in_buffer; }
+      size_t get_event_map_size() const { return event_map.size(); }
    };
 }
 #endif // MESYTEC_BUFFER_READER_H
