@@ -85,10 +85,10 @@ namespace mesytec
                if(got_header) throw(std::runtime_error("Read another header straight after first"));
                else if(reading_data) throw(std::runtime_error("Read header while reading data, no EOE"));
                mod_data = mdpp::module_data{next_word};
-               if(is_mdpp16(mod_data)&&(got_mdpp16||got_mdpp32))
-                  throw(std::runtime_error("Got MDPP16 data after either MDPP16 or MDPP32 data"));
-               if(is_mdpp32(mod_data)&&!got_mdpp16)
-                  throw(std::runtime_error("Got MDPP32 data without first reading MDPP16 data"));
+               if(is_mdpp32(mod_data)&&(got_mdpp16||got_mdpp32))
+                  throw(std::runtime_error("Got MDPP32 data after either MDPP16 or MDPP32 data"));
+               if(is_mdpp16(mod_data)&&!got_mdpp32)
+                  throw(std::runtime_error("Got MDPP16 data without first reading MDPP32 data"));
                if(is_mdpp16(mod_data)) got_mdpp16=true;
                else if(is_mdpp32(mod_data)) got_mdpp32=true;
                got_header = true;
@@ -106,7 +106,7 @@ namespace mesytec
                mod_data.event_counter = event_counter(next_word);
                mod_data.eoe_word = next_word;
 
-               if(got_mdpp16 && !got_mdpp32) event.event_counter = mod_data.event_counter;
+               if(got_mdpp32 && !got_mdpp16) event.event_counter = mod_data.event_counter;
                event.add_module_data(mod_data);
                // have we received data (at least a header) for every module in the setup?
                // if so then the event is complete and can be encapsulated in an MFMFrame (for example)
