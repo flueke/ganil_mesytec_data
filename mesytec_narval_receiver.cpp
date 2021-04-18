@@ -109,7 +109,7 @@ void process_block (struct my_struct *,
          std::string what{ e.what() };
          if(!output_buffer_is_full) // error parsing buffer
          {
-            std::cout << "[MESYTEC] : Error parsing Mesytec buffer : " << what << std::endl;
+            std::cout << "[MESYTEC] : Error parsing STORED Mesytec buffer : " << what << std::endl;
             // abandon buffer & try next one
             MESYbuf->reset();
             return;
@@ -181,7 +181,7 @@ void process_block (struct my_struct *,
       struct tm * timeinfo = localtime (&current_time);
       std::string now = asctime(timeinfo);
       now.erase(now.size()-1);//remove new line character
-      std::cout << "[MESYTEC] : " << now << " : parse rate " << tot_events_parsed/time_elapsed << " evt./sec...";
+      std::cout << "[MESYTEC] : " << now << " : parse rate " << tot_events_parsed/time_elapsed << " evt./sec...\n";
       tot_events_parsed=0;
    }
    //std::cout << "[MESYTEC] : exiting receive-treat loop, " << MESYbuf->get_total_events_parsed() << " events were parsed\n";

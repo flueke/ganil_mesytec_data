@@ -19,6 +19,7 @@ namespace mesytec
       uint8_t* buf_pos=nullptr;
       size_t bytes_left_in_buffer=0;
       uint32_t total_number_events_parsed;
+      bool got_mdpp16{false},got_mdpp32{false};
    public:
       void reset()
       {
@@ -32,6 +33,7 @@ namespace mesytec
          buf_pos=nullptr;
          bytes_left_in_buffer=0;
          total_number_events_parsed=0;
+         got_mdpp16=got_mdpp32=false;
       }
 
       buffer_reader() = default;
@@ -75,7 +77,6 @@ namespace mesytec
 
          auto is_mdpp16 = [](const mdpp::module_data& md){ return md.module_id==0x0; };
          auto is_mdpp32 = [](const mdpp::module_data& md){ return md.module_id==0x10; };
-         bool got_mdpp16{false},got_mdpp32{false};
 
          while(words_to_read--)
          {
