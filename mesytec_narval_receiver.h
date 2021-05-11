@@ -16,7 +16,7 @@ const int status_update_interval=5; // print infos every x seconds
 const int max_iterations_of_parse_loop=10; // avoid infinite loop!
 unsigned char mfmevent[0x400000]; // 4 MB buffer
 std::string zmq_port;
-std::string number_of_modules; // passed as algo_path
+std::string path_to_setup; // passed as algo_path
 zmq::context_t context(1);	// for ZeroMQ communications
 zmq::socket_t *pub;
 zmq::message_t event;

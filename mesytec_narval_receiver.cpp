@@ -4,11 +4,11 @@
 /* Functions called on "Init" */
 void process_config (char *directory_path, unsigned int *error_code)
 {
-   number_of_modules = directory_path;
+   path_to_setup = directory_path;
    printf ("\n[MESYTEC] : ***process_config*** called\n");
    zmq_port = "tcp://mesytecPC:5575";
    printf ("[MESYTEC] : MESYTECSpy port = %s\n",zmq_port.c_str());
-   printf ("[MESYTEC] :  - expected number of modules = %s\n", number_of_modules.c_str());
+   printf ("[MESYTEC] :  - will read crate map in = %s/crate_map.dat\n", path_to_setup.c_str());
    *error_code = 0;
 }
 
@@ -30,8 +30,9 @@ void process_initialise (struct my_struct *,
    /* put your code here */
    *error_code = 0;
 
-   // dummy set up with total number of modules to read in each event
-   mesytec::experimental_setup mesytec_setup( std::atoi(number_of_modules.c_str()));
+   // read crate map
+   mesytec::experimental_setup mesytec_setup;
+   mesytec_setup.read_crate_map(path_to_setup + "/crate.map");
 
    MESYbuf = new mesytec::buffer_reader(mesytec_setup);
    printf ("\n[MESYTEC] : ***process_initialise*** called\n");
