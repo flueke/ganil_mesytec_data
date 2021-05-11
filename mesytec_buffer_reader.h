@@ -76,12 +76,10 @@ namespace mesytec
 
          total_number_events_parsed = 0;
 
-         auto is_mdpp16 = [](const mdpp::module_data& md){ return md.module_id==0x0; };
-         auto is_mdpp32 = [](const mdpp::module_data& md){ return md.module_id==0x10; };
-         auto is_tgv    = [](const mdpp::module_data& md){ return md.module_id==0xff; };
+         // initialize readout sequence
+         mesytec_setup.readout.begin_readout();
 
-         int modules_read = 0;
-
+         got_tgv=false;
          while(words_to_read--)
          {
             auto next_word = read_data_word(buf_pos);
@@ -89,21 +87,15 @@ namespace mesytec
             {
                if(got_header) throw(std::runtime_error("Read another header straight after first"));
                else if(reading_data) throw(std::runtime_error("Read header while reading data, no EOE"));
+
                mod_data = mdpp::module_data{next_word};
-               if(!is_mdpp32(mod_data)&&!is_mdpp16(mod_data)&&!is_tgv(mod_data))
-                  throw(std::runtime_error("Data is neither MDPP16 nor MDPP32 nor TGV data"));
-               if(is_mdpp32(mod_data)&&got_mdpp32)
-                  throw(std::runtime_error("Got another MDPP32 data after MDPP32 data"));
-               if(is_mdpp16(mod_data)&&got_mdpp16)
-                  throw(std::runtime_error("Got another MDPP16 data after MDPP16 data"));
-               if(is_mdpp16(mod_data)) got_mdpp16=true;
-               else if(is_mdpp32(mod_data)) got_mdpp32=true;
-               else if(is_tgv(mod_data)) {
-                  got_tgv=true;
-               }
+               // check readout sequence - if wrong, exception thrown
+               mesytec_setup.readout.accept_module_for_readout(mod_data.module_id);
+
+               got_tgv = (mesytec_setup.get_module(mod_data.module_id).firmware == TGV);
+
                got_header = true;
                reading_data = false;
-               ++modules_read;
             }
             else if(is_mdpp_data(next_word)) {
                if(!got_header) throw(std::runtime_error("Read MDPP data without first reading header"));
@@ -122,7 +114,7 @@ namespace mesytec
                mod_data.event_counter = event_counter(next_word);
                mod_data.eoe_word = next_word;
 
-               if(!is_tgv(mod_data)) event.event_counter = mod_data.event_counter;
+               if(!got_tgv) event.event_counter = mod_data.event_counter;
                else
                {
                   // is TGV happy ?
@@ -134,12 +126,14 @@ namespace mesytec
                   event.tgv_ts_lo = (mod_data.data[1].data_word &= data_flags::tgv_data_mask_lo);
                   event.tgv_ts_mid = (mod_data.data[2].data_word &= data_flags::tgv_data_mask_lo);
                   event.tgv_ts_hi = (mod_data.data[3].data_word &= data_flags::tgv_data_mask_lo);
+
+                  got_tgv=false;
                }
 
                event.add_module_data(mod_data);
                // have we received data (at least a header) for every module in the setup?
                // if so then the event is complete and can be encapsulated in an MFMFrame (for example)
-               if(got_mdpp16 && got_mdpp32 && got_tgv)
+               if(mesytec_setup.readout.readout_complete())
                {
                   // store event counter in case callback function 'aborts' (output buffer full)
                   // and we have to keep the event for later
@@ -149,9 +143,10 @@ namespace mesytec
                   storing_last_complete_event=false;// successful callback
                   // reset event after sending/encapsulating
                   event.clear();
-                  got_mdpp16=got_mdpp32=got_tgv=false;
+                  // begin new readout cycle
+                  mesytec_setup.readout.begin_readout();
+
                   ++total_number_events_parsed;
-                  modules_read=0;
                }
             }
             buf_pos+=4;
@@ -195,14 +190,9 @@ namespace mesytec
             }
             else if(is_mdpp_data(next_word)) {
                reading_data=true;
-               if(mesytec_setup.is_dummy_setup())
-                   mod_data.add_data(next_word);
-               else
-               {
-                   auto& mod = mesytec_setup.get_module(mod_data.module_id);
-                   mod.set_data_word(next_word);
-                   mod_data.add_data( mod.data_type(), mod.channel_number(), mod.channel_data(), next_word);
-               }
+               auto& mod = mesytec_setup.get_module(mod_data.module_id);
+               mod.set_data_word(next_word);
+               mod_data.add_data( mod.data_type(), mod.channel_number(), mod.channel_data(), next_word);
             }
             else if((got_header || reading_data) && is_end_of_event(next_word)) // ignore 2nd, 3rd, ... EOE
             {
@@ -228,6 +218,8 @@ namespace mesytec
          // reset event
          event.clear();
          storing_last_complete_event=false;
+         // begin new readout cycle
+         mesytec_setup.readout.begin_readout();
          // advance position in buffer
          buf_pos+=4;
       }
