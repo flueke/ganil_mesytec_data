@@ -113,3 +113,8 @@ void mesytec::print_ext_ts(uint32_t DATA)
 {
    printf("== EXT-TS :: high_stamp = %5d\n", extended_timestamp(DATA));
 }
+
+bool mesytec::is_tgv_data(uint32_t DATA)
+{
+   return ((DATA&data_flags::tgv_data_mask_hi)==0);
+}

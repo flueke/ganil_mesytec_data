@@ -20,6 +20,9 @@ namespace mesytec
       const uint32_t module_id_mask = 0x00FF0000;
       const uint32_t module_id_div = 0x10000;
       const uint32_t mdpp_data_mask = 0xF0000000;
+      const uint32_t tgv_data_mask_hi = 0xFFFF0000;
+      const uint32_t tgv_data_ready_mask = 0x00000004;
+      const uint32_t tgv_data_mask_lo = 0x0000FFFF;
       const uint32_t madc_data_mask = 0xFF800000;
       const uint32_t mdpp_data = 0x10000000;
       const uint32_t madc_data = 0x04000000;
@@ -44,7 +47,8 @@ namespace mesytec
    {
       SCP,
       QDC,
-      CSI
+      CSI,
+      TGV
    };
 
    struct end_of_buffer : public std::runtime_error
@@ -145,6 +149,7 @@ namespace mesytec
    bool is_header(uint32_t DATA);
    bool is_end_of_event(uint32_t DATA);
    bool is_mdpp_data(uint32_t DATA);
+   bool is_tgv_data(uint32_t DATA);
    bool is_fill_word(uint32_t DATA);
    bool is_extended_ts(uint32_t DATA);
    void print_type(uint32_t DATA);

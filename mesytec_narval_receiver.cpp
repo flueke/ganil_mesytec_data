@@ -211,9 +211,11 @@ void mesytec_mfm_converter::operator()(mesytec::mdpp::event &event)
    *((uint16_t*)(&mfmevent[5])) = mesytec::mdpp::mfm_frame_type; // frame type
    mfmevent[7] = 0x00; // frame revision 0
 
-   // next 6 bytes [8]-[13] are for the timestamp - implement when ready
-   // for the moment, copy the (30-bit) Mesytec timestamp/event counter
-   *((uint32_t*)(&mfmevent[8])) = event.event_counter;
+   // next 6 bytes [8]-[13] are for the timestamp
+   *((uint16_t*)(&mfmevent[8])) = event.tgv_ts_lo;
+   *((uint16_t*)(&mfmevent[10])) = event.tgv_ts_mid;
+   *((uint16_t*)(&mfmevent[12])) = event.tgv_ts_hi;
+   //printf("mfmframe: ts_lo %#06x  ts_mid %#06x  ts_hi %#06x\n",*((uint16_t*)(&mfmevent[8])),*((uint16_t*)(&mfmevent[10])),*((uint16_t*)(&mfmevent[12])));
 
    // bytes [14]-[17]: event number (event counter from mesytec EOE)
    *((uint32_t*)(&mfmevent[14])) = event.event_counter;

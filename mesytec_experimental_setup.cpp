@@ -29,7 +29,7 @@ namespace mesytec
       firmwares["SCP"] = mesytec::SCP;
       firmwares["QDC"] = mesytec::QDC;
       firmwares["CSI"] = mesytec::CSI;
-      std::vector<module> modules;
+      firmwares["TGV"] = mesytec::TGV;
       do
       {
          std::string dummy;

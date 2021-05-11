@@ -136,6 +136,7 @@ namespace mesytec
       {
          std::vector<module_data> modules;
          uint32_t event_counter;
+         uint16_t tgv_ts_lo,tgv_ts_mid,tgv_ts_hi;
 
          void clear()
          {
