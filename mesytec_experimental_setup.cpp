@@ -44,6 +44,7 @@ namespace mesytec
          if(_mapfile.good())
          {
             crate_map[modid] = module{name, modid, nchan, firmwares[firm]};
+            readout.add_module(modid);
          }
       }
       while(_mapfile.good());

@@ -6,29 +6,96 @@
 namespace mesytec
 {
    /**
+   \struct module_readout_status
+
+   simple structure to store module id and whether it has been read
+    */
+   struct module_readout_status
+   {
+      uint8_t id;
+      bool read{false};
+      module_readout_status(uint8_t _id)
+         : id(_id)
+      {}
+   };
+
+   class wrong_module_sequence : public std::runtime_error
+   {
+   public:
+      wrong_module_sequence() : runtime_error("wrong module sequence")
+      {}
+   };
+
+   class module_appears_twice : public std::runtime_error
+   {
+   public:
+      module_appears_twice() : runtime_error("module appears twice")
+      {}
+   };
+
+   /**
+    \class setup_readout
+    */
+   class setup_readout
+   {
+      std::vector<module_readout_status> mods;
+      size_t index;
+      size_t next;
+      size_t number_of_modules;
+   public:
+      void add_module(uint8_t id)
+      {
+         mods.emplace_back(id);
+      }
+      void begin_readout()
+      {
+         index=0;
+         next=0;
+         number_of_modules=mods.size();
+         for(auto& m : mods) m.read=false;
+      }
+      bool is_next_module(uint8_t id)
+      {
+         return (id == mods[next].id);
+      }
+      bool next_module_readout_status() const
+      {
+         return mods[next].read;
+      }
+      void accept_module_for_readout(uint8_t id)
+      {
+         if(is_next_module(id) && !next_module_readout_status())
+         {
+            index=next++;
+            mods[index].read=true;
+         }
+         else
+         {
+            if(!is_next_module(id))
+               throw(wrong_module_sequence());
+            else
+               throw(module_appears_twice());
+         }
+      }
+      bool readout_complete() const
+      {
+         return next==number_of_modules;
+      }
+   };
+
+   /**
   \class experimental_setup
 
   Can read chassis config from file.
   Can read correspondance module-channel-detector from file.
 
-  A dummy setup can be initialised with just a total number of modules
-  (only information required to collate data from the same event).
  */
    class experimental_setup
    {
       mutable std::map<uint8_t, module> crate_map; /// map module id to module
-      uint8_t total_number_modules;
    public:
-      experimental_setup()
-         : total_number_modules{0}
-      {}
-      experimental_setup(uint8_t number_modules)
-         : total_number_modules{number_modules}
-      {
-         /// Initialise a dummy set up with just a total number of modules
-      }
+      experimental_setup() {}
       experimental_setup(std::vector<module> &&modules)
-         : total_number_modules{0}
       {
          // define crate map with a vector of module constructors
          // e.g.
@@ -37,21 +104,20 @@ namespace mesytec
          //            {"MDPP-16", 0x0, 16, mesytec::SCP},
          //            {"MDPP-32", 0x10, 32, mesytec::SCP}
          //         });
-         for(auto& mod : modules) crate_map[mod.id] = std::move(mod);
-      }
-
-      /// do not ask for information on modules, channels, detectors if true
-      bool is_dummy_setup() const
-      {
-         return total_number_modules>0;
+         for(auto& mod : modules) {
+            crate_map[mod.id] = std::move(mod);
+            readout.add_module(mod.id);
+         }
       }
       void read_crate_map(const std::string& mapfile);
       void read_detector_correspondence(const std::string& mapfile);
 
+      setup_readout readout;
+
       module& get_module(uint8_t mod_id) const { return crate_map[mod_id]; }
       size_t number_of_modules() const
       {
-         return is_dummy_setup() ? total_number_modules : crate_map.size();
+         return crate_map.size();
       }
 
       /// Get name of detector associated with channel number
