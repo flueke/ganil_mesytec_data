@@ -42,9 +42,11 @@ namespace mesytec
             }
             return *this;
          }
-         void ls() const
+         template<typename Config>
+         void ls(const Config& cfg, uint8_t mod_id) const
          {
-            std::cout << "\tCHAN#" << (unsigned int)channel << "\tTYPE=" << data_type << "\tDATA=" << data << std::endl;
+            std::cout << "\tCHAN#" << (unsigned int)channel << "\tDETECTOR=" << cfg.get_detector(mod_id,channel)
+                         << "\tTYPE=" << data_type << "\tDATA=" << data << std::endl;
          }
          void add_data_to_buffer(std::vector<uint32_t>& buf) const
          {
@@ -104,14 +106,15 @@ namespace mesytec
          {
             data.emplace_back(data_word);
          }
-         void ls() const
+         template<typename Config>
+         void ls(const Config& cfg) const
          {
             std::cout << " Module-ID=" << std::hex << std::showbase << (unsigned int)module_id << std::dec;
             if(module_id==0) std::cout << "\t(MDPP-16)";
             else std::cout << "\t(MDPP-32)";
             std::cout << " : event#" << event_counter;
             std::cout << "  [data words:" << data_words-1 << "]\n";
-            for(auto& d : data) d.ls();
+            for(auto& d : data) d.ls(cfg,module_id);
          }
          void add_data_to_buffer(std::vector<uint32_t>& buf) const
          {
@@ -153,10 +156,11 @@ namespace mesytec
          {
             return (modules.size()==number_of_modules);
          }
-         void ls() const
+         template<typename Config>
+         void ls(const Config& cfg) const
          {
             std::cout << " Event# " << event_counter << std::endl;
-            for(auto& m: modules) m.ls();
+            for(auto& m: modules) m.ls(cfg);
          }
          size_t size_of_buffer() const
          {
