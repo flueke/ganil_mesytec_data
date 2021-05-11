@@ -32,7 +32,7 @@ void process_initialise (struct my_struct *,
 
    // read crate map
    mesytec::experimental_setup mesytec_setup;
-   mesytec_setup.read_crate_map(path_to_setup + "/crate.map");
+   mesytec_setup.read_crate_map(path_to_setup + "/crate_map.dat");
 
    MESYbuf = new mesytec::buffer_reader(mesytec_setup);
    printf ("\n[MESYTEC] : ***process_initialise*** called\n");
