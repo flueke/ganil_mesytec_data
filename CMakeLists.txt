@@ -13,23 +13,27 @@ target_link_libraries(read_listfile mesytec_data)
 #- set path to our cmake modules
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 
-find_package(ZMQ REQUIRED)
-include_directories(${ZMQ_INCLUDE_DIRS})
-#add_executable(test_buffer_reader test_buffer_reader.cpp)
-#target_link_libraries(test_buffer_reader mesytec_data ${ZMQ_LIBRARIES})
+#- look for ZeroMQ to build Narval receiver for INDRA DAQ
+find_package(ZMQ)
+if(ZMQ_FOUND)
+    include_directories(${ZMQ_INCLUDE_DIRS})
+    add_library(mesytec_narval_receiver SHARED mesytec_narval_receiver.cpp)
+    target_link_libraries(mesytec_narval_receiver mesytec_data ${ZMQ_LIBRARIES})
+    install(TARGETS mesytec_narval_receiver
+        EXPORT ${CMAKE_PROJECT_NAME}Exports
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+    install(FILES mesytec_narval_receiver.h DESTINATION ${CMAKE_INSTALL_PKGINCDIR})
+endif(ZMQ_FOUND)
 
-add_library(mesytec_narval_receiver SHARED mesytec_narval_receiver.cpp)
-target_link_libraries(mesytec_narval_receiver mesytec_data ${ZMQ_LIBRARIES})
-add_executable(test_narval_actor test_narval_actor.cpp)
-target_link_libraries(test_narval_actor mesytec_narval_receiver)
-
-install(TARGETS mesytec_data read_listfile mesytec_narval_receiver test_narval_actor
+install(TARGETS mesytec_data read_listfile
     EXPORT ${CMAKE_PROJECT_NAME}Exports
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 set(CMAKE_INSTALL_PKGINCDIR ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
-install(FILES mesytec_module.h mesytec_data.h mesytec_buffer_reader.h mesytec_narval_receiver.h mesytec_experimental_setup.h
+install(FILES mesytec_module.h mesytec_data.h mesytec_buffer_reader.h mesytec_experimental_setup.h
    DESTINATION ${CMAKE_INSTALL_PKGINCDIR})
 
 #---install cmake stuff for find_package(mesytec_data) for use by other projects
