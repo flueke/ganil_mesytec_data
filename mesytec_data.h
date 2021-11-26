@@ -17,9 +17,9 @@ namespace mesytec
       struct channel_data
       {
          std::string data_type; /// "adc", "tdc", "qdc_short", "qdc_long", "trig0", "trig1"
+         uint32_t data_word;
          uint16_t data;
          uint8_t channel;
-         uint32_t data_word;
 
          channel_data()=default;
          ~channel_data()=default;
@@ -27,10 +27,10 @@ namespace mesytec
             : data_word{std::move(_dw)}
          {}
          channel_data(std::string _type, uint8_t _chan, uint16_t _data, uint32_t _dw)
-            : data_type{std::move(_type)}, data{std::move(_data)}, channel{std::move(_chan)}, data_word{std::move(_dw)}
+            : data_type{std::move(_type)}, data_word{std::move(_dw)}, data{std::move(_data)}, channel{std::move(_chan)}
          {}
          channel_data(channel_data&& other)
-            : data_type{std::move(other.data_type)}, data{std::move(other.data)}, channel{std::move(other.channel)}, data_word{std::move(other.data_word)}
+            : data_type{std::move(other.data_type)}, data_word{std::move(other.data_word)}, data{std::move(other.data)}, channel{std::move(other.channel)}
          {}
          channel_data(const channel_data&) = delete;
          channel_data& operator=(const channel_data&) = delete;
@@ -59,9 +59,9 @@ namespace mesytec
          std::vector<channel_data> data;
          uint32_t event_counter : 30;
          uint32_t header_word;
+         uint32_t eoe_word;
          uint16_t data_words : 10; // number of data items + 1 EOE
          uint8_t module_id;
-         uint32_t eoe_word;
 
          void clear()
          {
@@ -83,8 +83,8 @@ namespace mesytec
          ~module_data()=default;
          module_data(module_data&& other)
             : data{std::move(other.data)}, event_counter{other.event_counter},
-              header_word{other.header_word}, data_words{other.data_words}, module_id{other.module_id},
-              eoe_word{other.eoe_word}
+              header_word{other.header_word},
+              eoe_word{other.eoe_word}, data_words{other.data_words}, module_id{other.module_id}
          {}
          module_data(const module_data&) = delete;
          module_data& operator=(const module_data&) = delete;
