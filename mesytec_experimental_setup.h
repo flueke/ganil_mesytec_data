@@ -94,6 +94,13 @@ namespace mesytec
    {
       mutable std::map<uint8_t, module> crate_map; /// map module id to module
    public:
+      class crate_map_not_found : public std::runtime_error
+      {
+      public:
+         crate_map_not_found() : runtime_error("crate map not found")
+         {}
+      };
+
       experimental_setup() {}
       experimental_setup(std::vector<module> &&modules)
       {

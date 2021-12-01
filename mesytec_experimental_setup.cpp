@@ -20,8 +20,9 @@ namespace mesytec
       _mapfile.open(mapfile);
       if(!_mapfile.good())
       {
-         std::cout << "Error in <mesytec::experimental_setup::read_crate_map> : failed to open file "
+         std::cerr << "Error in <mesytec::experimental_setup::read_crate_map> : failed to open file "
                    << mapfile << std::endl;
+         throw crate_map_not_found();
       }
       std::string name, firm;
       uint8_t modid, nchan;
