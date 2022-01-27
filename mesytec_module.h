@@ -153,6 +153,7 @@ namespace mesytec
    bool is_fill_word(uint32_t DATA);
    bool is_extended_ts(uint32_t DATA);
    void print_type(uint32_t DATA);
+   std::string decode_type(uint32_t DATA);
    uint16_t length_of_data(uint32_t DATA);
    uint8_t module_id(uint32_t DATA);
    unsigned int module_setting(uint32_t DATA);

@@ -21,8 +21,10 @@ zmq::context_t context(1);	// for ZeroMQ communications
 zmq::socket_t *pub;
 zmq::message_t event;
 bool output_buffer_is_full=false;
+bool first_buffer_has_been_read = false;
 uint32_t tot_events_parsed;
 mesytec::buffer_reader* MESYbuf=nullptr;
+std::ofstream log_parse_errors;
 struct mesytec_mfm_converter
 {
    void *output_buffer;

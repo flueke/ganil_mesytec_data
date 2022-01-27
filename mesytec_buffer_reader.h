@@ -5,6 +5,7 @@
 #include "mesytec_experimental_setup.h"
 #include <assert.h>
 #include <ios>
+#include <ostream>
 
 namespace mesytec
 {
@@ -22,6 +23,11 @@ namespace mesytec
       uint32_t total_number_events_parsed;
       bool got_mdpp16{false},got_mdpp32{false},got_tgv{false};
    public:
+      void initialise_readout()
+      {
+         mesytec_setup.readout.begin_readout();
+      }
+
       void reset()
       {
          // reset buffer reader to initial state, before reading any buffers
@@ -35,6 +41,7 @@ namespace mesytec
          bytes_left_in_buffer=0;
          total_number_events_parsed=0;
          got_mdpp16=got_mdpp32=got_tgv=false;
+         mesytec_setup.readout.begin_readout();
       }
 
       buffer_reader() = default;
@@ -46,6 +53,43 @@ namespace mesytec
          mesytec_setup = setup;
       }
       const experimental_setup& get_setup() const { return mesytec_setup; }
+      void dump_buffer(const uint8_t* _buf, size_t nbytes, std::ostream& output, const std::string& what, bool ignore_current_position=false)
+      {
+         // Dump decoded (i.e. byte swapped) buffer to ostream, 10 32-bit words before and after current position
+         // (but do not depass start or end of buffer)
+         //
+         // If ignore_current_position=true, we dump the nbytes first words of the buffer given to _buf
+         //
+         // Indicate current position in buffer (in case of problems: 'what' gives exception message)
+
+         auto start = (uint8_t*)(buf_pos - 10*4);
+         if(start < _buf) start=const_cast<uint8_t*>(_buf);
+         auto end = (uint8_t*)(buf_pos + 10*4);
+         if(end > _buf+nbytes) end = const_cast<uint8_t*>(_buf)+nbytes;
+         if(ignore_current_position)
+         {
+            start = const_cast<uint8_t*>(_buf);
+            end = start + 21*4;
+         }
+
+         int words_to_read = (end-start)/4+1;
+         auto my_buf_pos = start;
+         while(words_to_read--)
+         {
+            bool current_loc = false;
+            if(!ignore_current_position && my_buf_pos == buf_pos) current_loc=true;
+            auto next_word = read_data_word(my_buf_pos);
+            output << std::hex << std::showbase << next_word << " " << decode_type(next_word);
+            if(current_loc) output << " <<<<<< " << what;
+            if(my_buf_pos == start) output << " - first word";
+            else if(my_buf_pos == end) output << " - last word";
+            if(my_buf_pos == _buf) output << " - START BUFFER";
+            else if(my_buf_pos == _buf+nbytes) output << " - END BUFFER";
+            output << std::endl;
+            my_buf_pos+=4;
+         }
+      }
+
       template<typename CallbackFunction>
       uint32_t read_buffer_collate_events(const uint8_t* _buf, size_t nbytes, CallbackFunction F)
       {
@@ -77,7 +121,7 @@ namespace mesytec
          total_number_events_parsed = 0;
 
          // initialize readout sequence
-         mesytec_setup.readout.begin_readout();
+         //mesytec_setup.readout.begin_readout();
 
          got_tgv=false;
          while(words_to_read--)

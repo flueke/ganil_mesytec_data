@@ -59,21 +59,25 @@ bool mesytec::is_extended_ts(uint32_t DATA)
    return ((DATA & data_flags::extended_ts_mask) == data_flags::extended_ts);
 }
 
-void mesytec::print_type(uint32_t DATA)
+std::string mesytec::decode_type(uint32_t DATA)
 {
    if(is_header(DATA))
-      std::cout << "HEADER";
+      return "HEADER";
    else if(is_end_of_event(DATA))
-      std::cout << "EOE";
+      return "EOE";
    else if(is_fill_word(DATA))
-      std::cout << "FILL-WORD";
+      return "FILL-WORD";
    else if(is_mdpp_data(DATA))
-      std::cout << "MDPP-DATA";
+      return "MDPP-DATA";
    else if(is_extended_ts(DATA))
-      std::cout << "EXT-TS";
-   else {
-      printf("(unknown) : %#08x",DATA);
-   }
+      return "EXT-TS";
+   else
+      return "(unknown)";
+}
+
+void mesytec::print_type(uint32_t DATA)
+{
+   std::cout << decode_type(DATA);
 }
 
 uint16_t mesytec::length_of_data(uint32_t DATA)

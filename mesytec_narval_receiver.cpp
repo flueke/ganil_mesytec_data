@@ -37,6 +37,9 @@ void process_initialise (struct my_struct *,
    MESYbuf = new mesytec::buffer_reader(mesytec_setup);
    printf ("\n[MESYTEC] : ***process_initialise*** called\n");
    printf ("[MESYTEC] : new mesytec_buffer_reader intialised = %p\n", MESYbuf);
+
+   log_parse_errors.open("/data/eindraX/e818_test_indra/acquisition/log/mesytec_parse_errors.log");
+   printf ("[MESYTEC] : parse error buffers will be written in /data/eindraX/e818_test_indra/acquisition/log/mesytec_parse_errors.log\n");
 }
 
 /* Functions called on "Start" */
@@ -44,6 +47,8 @@ void process_start (struct my_struct *,
                     unsigned int *error_code)
 {
    std::cout << "[MESYTEC] : ***process_start*** called\n";
+
+   MESYbuf->initialise_readout();
 
    // start zmq receiver here (probably)
    try {
@@ -148,6 +153,13 @@ void process_block (struct my_struct *,
          break;
       }
       //std::cout << "[MESYTEC] : Received buffer of " << event.size() << " bytes from MVLC\n";
+      if(!first_buffer_has_been_read)
+      {
+         log_parse_errors << "BEGINNING OF FIRST BUFFER:" << std::endl;
+         MESYbuf->dump_buffer((const uint8_t*)event.data(),41,log_parse_errors,"",true);
+         log_parse_errors << std::endl;
+         first_buffer_has_been_read = true;
+      }
       try
       {
          events_treated = MESYbuf->read_buffer_collate_events((const uint8_t*)event.data(), event.size(), CONVERTER);
@@ -158,6 +170,15 @@ void process_block (struct my_struct *,
          if(!output_buffer_is_full) // error parsing buffer
          {
             std::cout << "[MESYTEC] : Error parsing Mesytec buffer : " << what << std::endl;
+            time_t t;
+            time(&t);
+            struct tm * timeinfo = localtime (&t);
+            std::string now = asctime(timeinfo);
+            now.erase(now.size()-1);//remove new line character
+            log_parse_errors << now << std::endl;
+            MESYbuf->dump_buffer((const uint8_t*)event.data(), event.size(),log_parse_errors,what);
+            log_parse_errors << std::endl << std::endl;
+            std::cout << "[MESYTEC] : see /data/eindraX/e818_test_indra/acquisition/log/mesytec_parse_errors.log" << std::endl;
             // abandon buffer & try next one
             MESYbuf->reset();
             return;
@@ -242,6 +263,7 @@ void process_stop (struct my_struct *,
    pub->close();
    *error_code = 0;
    std::cout << "[MESYTEC] : shut down of ZMQ socket\n";
+   log_parse_errors.close();
 }
 
 /* Functions called on "BreakUp"0
