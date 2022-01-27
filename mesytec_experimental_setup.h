@@ -3,6 +3,11 @@
 
 #include "mesytec_module.h"
 
+//#define DEBUG 1
+#ifdef DEBUG
+#include <iostream>
+#endif
+
 namespace mesytec
 {
    /**
@@ -64,6 +69,9 @@ namespace mesytec
       }
       void accept_module_for_readout(uint8_t id)
       {
+#ifdef DEBUG
+         std::cout << "accept_module_for_readout:" << std::hex << std::showbase << (int)id << std::endl;
+#endif
          if(is_next_module(id) && !next_module_readout_status())
          {
             index=next++;

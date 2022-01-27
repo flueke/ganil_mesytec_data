@@ -85,6 +85,8 @@ namespace mesytec
             auto next_word = read_data_word(buf_pos);
             if(is_header(next_word))
             {
+               //std::cout << "read data header" << std::endl;
+
                if(got_header) throw(std::runtime_error("Read another header straight after first"));
                else if(reading_data) throw(std::runtime_error("Read header while reading data, no EOE"));
 
@@ -93,22 +95,26 @@ namespace mesytec
                mesytec_setup.readout.accept_module_for_readout(mod_data.module_id);
 
                got_tgv = (mesytec_setup.get_module(mod_data.module_id).firmware == TGV);
+               //if(got_tgv) std::cout << "TGV header" << std::endl;
 
                got_header = true;
                reading_data = false;
             }
             else if(is_mdpp_data(next_word)) {
+               //std::cout << "reading data" << std::endl;
                if(!got_header) throw(std::runtime_error("Read MDPP data without first reading header"));
                reading_data=true;
                mod_data.add_data(next_word);
             }
             else if(got_tgv && is_tgv_data(next_word)) {
+               //std::cout << "reading TGV data" << std::endl;
                if(!got_header) throw(std::runtime_error("Read TGV data without first reading header"));
                reading_data=true;
                mod_data.add_data(next_word);
             }
             else if((got_header || reading_data) && is_end_of_event(next_word)) // ignore 2nd, 3rd, ... EOE
             {
+               //std::cout << "end of event reached" << std::endl;
                got_header=false;
                reading_data=false;
                mod_data.event_counter = event_counter(next_word);
@@ -135,6 +141,7 @@ namespace mesytec
                // if so then the event is complete and can be encapsulated in an MFMFrame (for example)
                if(mesytec_setup.readout.readout_complete())
                {
+                  //std::cout << "readout complete" << std::endl;
                   // store event counter in case callback function 'aborts' (output buffer full)
                   // and we have to keep the event for later
                   storing_last_complete_event=true;

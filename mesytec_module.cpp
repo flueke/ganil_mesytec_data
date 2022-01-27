@@ -28,7 +28,10 @@ uint32_t mesytec::read_data_word(const uint8_t *data)
 {
    // Read 4 bytes from buffer and return 32-bit little-endian data word
 
-   return data[0]+(data[1]<<8)+(data[2]<<16)+(data[3]<<24);
+   uint32_t x = data[0]+(data[1]<<8)+(data[2]<<16)+(data[3]<<24);
+//   printf("%02x %02x %02x %02x : %#04x %#04x\n",
+//          data[0],data[1],data[2],data[3],x>>16,(x<<16)/0x10000);
+   return x;
 }
 
 bool mesytec::is_header(uint32_t DATA)
