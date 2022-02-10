@@ -1,72 +1,50 @@
-#include "mesytec_narval_receiver.h"
 #include <iostream>
 #include <chrono>
 #include <thread>
 #include <fstream>
 //using namespace std::chrono_literals;
+#include "zmq.hpp"
+#define USE_NEW_PARSER
+#include "mesytec_buffer_reader.h"
 
-int main(int argc, char* argv[])
+zmq::context_t context(1);	// for ZeroMQ communications
+
+int main()
 {
-   // arg[1]= host:port
+   std::string path_to_setup = "/home/eindra/ganacq_manip/mesytec_test_1";
+   std::string zmq_port = "tcp://mesytecPC:5575";
 
-   // pass URL:PORT as argument
-   std::string zmq_port{"tcp://"};
-   zmq_port.append(argv[1]);
+   mesytec::experimental_setup mesytec_setup;
+   mesytec_setup.read_crate_map(path_to_setup + "/crate_map.dat");
 
-   unsigned int error_code;
+   mesytec::buffer_reader MESYbuf{mesytec_setup};
 
-   process_config((char*)zmq_port.c_str(),&error_code);
-
-   if(error_code!=0) std::cerr << "error in process_config" << std::endl;
-
-   auto algo_dat = process_register(&error_code);
-
-   if(error_code!=0) std::cerr << "error in process_register" << std::endl;
-
-   process_initialise(algo_dat, &error_code);
-
-   if(error_code!=0) std::cerr << "error in process_initialise" << std::endl;
-
-   process_start(algo_dat, &error_code);
-
-   if(error_code!=0) std::cerr << "error in process_start" << std::endl;
-
-   const int bufsize = 400000;
-   unsigned char buffer[bufsize];
-   mesytec::experimental_setup mesytec_setup
-         (
-            {
-               {"MDPP-16", 0x0, 16, mesytec::SCP},
-               {"MDPP-32", 0x10, 32, mesytec::SCP}
-            }
-            );
-   mesytec::buffer_reader readBuf{mesytec_setup};
-
-   std::ofstream mfmfile("run_0001.dat", std::ios::binary);
-
-   int n=10;
-   while(n--)
-   {
-      unsigned int buff_used=0;
-      process_block(algo_dat,
-                    buffer,
-                    bufsize,
-                    &buff_used,
-                    &error_code);
-
-      if(error_code!=0){
-         std::cerr << "error in process_block" << std::endl;
-         break;
-      }
-      else std::cout << "Used " << buff_used << " bytes of output buffer size " << bufsize << " bytes";
-
-      if(buff_used) mfmfile.write(reinterpret_cast<char*>(buffer), buff_used);
-
-      std::chrono::milliseconds dodo(1000);
-      std::this_thread::sleep_for(dodo);
+   zmq::socket_t *pub;
+   try {
+      pub = new zmq::socket_t(context, ZMQ_SUB);
+   } catch (zmq::error_t &e) {
+      std::cout << "[MESYTEC] : ERROR: " << "process_start: failed to start ZeroMQ event spy: " << e.what () << std::endl;
    }
 
-   mfmfile.close();
+   int timeout=100;//milliseconds
+   pub->setsockopt(ZMQ_RCVTIMEO, &timeout, sizeof(int));
+   try {
+      pub->connect(zmq_port.c_str());
+   } catch (zmq::error_t &e) {
+      std::cout << "[MESYTEC] : ERROR" << "process_start: failed to bind ZeroMQ endpoint " << zmq_port << ": " << e.what () << std::endl;
+   }
+   std::cout << "[MESYTEC] : Connected to MESYTECSpy " << zmq_port << std::endl;
+   pub->setsockopt(ZMQ_SUBSCRIBE, "", 0);
+
+   zmq::message_t event;
+
+   while(1)
+   {
+      if(pub->recv(event))
+      {
+         MESYbuf.read_buffer_collate_events((const uint8_t*)event.data(), event.size());
+      }
+   }
 
    return 0;
 }

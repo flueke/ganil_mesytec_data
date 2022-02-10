@@ -23,7 +23,6 @@ namespace mesytec
       size_t bytes_left_in_buffer=0;
       uint32_t total_number_events_parsed;
       bool got_mdpp16{false},got_mdpp32{false},got_tgv{false};
-
       static const size_t last_buf_store_size=200;// 4 * nwords
       std::array<uint8_t,last_buf_store_size> store_end_of_last_buffer;
 
@@ -102,6 +101,7 @@ namespace mesytec
          }
       }
 
+#ifndef USE_NEW_PARSER
       template<typename CallbackFunction>
       uint32_t read_buffer_collate_events(const uint8_t* _buf, size_t nbytes, CallbackFunction F)
       {
@@ -224,6 +224,62 @@ namespace mesytec
 
          return total_number_events_parsed;
       }
+#else
+      uint32_t read_buffer_collate_events(const uint8_t* _buf, size_t nbytes)
+      {
+         // To be used with a raw mvme data stream in order to sort and collate different module data
+         // i.e. in Narval receiver actor.
+         //
+         // Read nbytes bytes from the buffer [must be a multiple of 4, i.e. only 4-byte words]
+         //
+         // Decode Mesytec MDPP data in the buffer, collate all module data with the same event counter
+         // (in their EOE word). When a complete event is ready the callback function is called with the event as
+         // argument. Suitable signature for callback could be
+         //
+         //    void callback((mesytec::mdpp::event& Event);
+         //
+         // Straight after the call, the event will be deleted, so don't bother keeping a copy of a
+         // reference to it, any data must be copied/moved in the callback function.
+         //
+         // Returns the number of complete collated events were parsed from the buffer, i.e. the number of times
+         // the callback function was called without throwing an exception.
+
+         assert(nbytes%4==0);
+
+         buf_pos = const_cast<uint8_t*>(_buf);
+         bytes_left_in_buffer = nbytes;
+
+         while(bytes_left_in_buffer)
+         {
+            auto next_word = read_data_word(buf_pos);
+
+            if(is_frame_header(next_word)) treat_header(next_word);
+            else
+            {
+               std::cout << std::hex << std::showbase << next_word << " " << decode_type(next_word) << std::endl;
+               buf_pos+=4;
+               bytes_left_in_buffer-=4;
+            }
+         }
+         return 0;
+      }
+
+      void treat_header(u32 header_word, const std::string& tab="")
+      {
+         std::cout << tab << decode_frame_header(header_word) << std::endl;
+         auto frame_info = extract_frame_info(header_word);
+         auto buf_pos_end = buf_pos + 4*frame_info.len;
+         while(buf_pos < buf_pos_end)
+         {
+            buf_pos+=4;
+            bytes_left_in_buffer-=4;
+            auto next_word = read_data_word(buf_pos);
+            if(is_frame_header(next_word)) treat_header(next_word,tab+"\t");
+            else
+               std::cout << tab << std::hex << std::showbase << next_word << " " << decode_type(next_word) << std::endl;
+         }
+      }
+#endif
       template<typename CallbackFunction>
       void read_event_in_buffer(const uint8_t* _buf, size_t nbytes, CallbackFunction F)
       {
