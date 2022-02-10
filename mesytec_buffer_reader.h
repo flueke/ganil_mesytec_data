@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <ios>
 #include <ostream>
+#include <cstring>
 
 namespace mesytec
 {
@@ -22,6 +23,10 @@ namespace mesytec
       size_t bytes_left_in_buffer=0;
       uint32_t total_number_events_parsed;
       bool got_mdpp16{false},got_mdpp32{false},got_tgv{false};
+
+      static const size_t last_buf_store_size=200;// 4 * nwords
+      std::array<uint8_t,last_buf_store_size> store_end_of_last_buffer;
+
    public:
       void initialise_readout()
       {
@@ -53,23 +58,30 @@ namespace mesytec
          mesytec_setup = setup;
       }
       const experimental_setup& get_setup() const { return mesytec_setup; }
-      void dump_buffer(const uint8_t* _buf, size_t nbytes, std::ostream& output, const std::string& what, bool ignore_current_position=false)
+
+      void dump_end_last_buffer(std::ostream& output)
       {
-         // Dump decoded (i.e. byte swapped) buffer to ostream, 10 32-bit words before and after current position
+         dump_buffer(store_end_of_last_buffer.data(), last_buf_store_size, last_buf_store_size/4, output, "", true);
+      }
+
+      void dump_buffer(const uint8_t* _buf, size_t _buf_size, size_t nwords, std::ostream& output, const std::string& what, bool ignore_current_position=false)
+      {
+         // Dump decoded (i.e. byte swapped) buffer to ostream, nwords 32-bit words before and after current position
          // (but do not depass start or end of buffer)
          //
-         // If ignore_current_position=true, we dump the nbytes first words of the buffer given to _buf
+         // If ignore_current_position=true, we dump the nwords first words of the buffer given to _buf
          //
          // Indicate current position in buffer (in case of problems: 'what' gives exception message)
 
-         auto start = (uint8_t*)(buf_pos - 10*4);
+         auto start = (uint8_t*)(buf_pos - nwords*4);
          if(start < _buf) start=const_cast<uint8_t*>(_buf);
-         auto end = (uint8_t*)(buf_pos + 10*4);
-         if(end > _buf+nbytes) end = const_cast<uint8_t*>(_buf)+nbytes;
-         if(ignore_current_position)
+         auto end = (uint8_t*)(buf_pos + nwords*4);
+         if(end > _buf+_buf_size) end = const_cast<uint8_t*>(_buf)+_buf_size;
+         if(ignore_current_position) // dump beginning of buffer
          {
             start = const_cast<uint8_t*>(_buf);
-            end = start + 21*4;
+            end = (uint8_t*)(_buf + nwords*4);
+            if(end > _buf+_buf_size) end = const_cast<uint8_t*>(_buf)+_buf_size;
          }
 
          int words_to_read = (end-start)/4+1;
@@ -84,7 +96,7 @@ namespace mesytec
             if(my_buf_pos == start) output << " - first word";
             else if(my_buf_pos == end) output << " - last word";
             if(my_buf_pos == _buf) output << " - START BUFFER";
-            else if(my_buf_pos == _buf+nbytes) output << " - END BUFFER";
+            else if(my_buf_pos == _buf+_buf_size) output << " - END BUFFER";
             output << std::endl;
             my_buf_pos+=4;
          }
@@ -124,10 +136,11 @@ namespace mesytec
          //mesytec_setup.readout.begin_readout();
 
          got_tgv=false;
+         bool i_read_some_data=false;
          while(words_to_read--)
          {
             auto next_word = read_data_word(buf_pos);
-            if(is_header(next_word))
+            if(is_event_header(next_word))
             {
                //std::cout << "read data header" << std::endl;
 
@@ -149,6 +162,7 @@ namespace mesytec
                if(!got_header) throw(std::runtime_error("Read MDPP data without first reading header"));
                reading_data=true;
                mod_data.add_data(next_word);
+               i_read_some_data=true;
             }
             else if(got_tgv && is_tgv_data(next_word)) {
                //std::cout << "reading TGV data" << std::endl;
@@ -185,7 +199,7 @@ namespace mesytec
                // if so then the event is complete and can be encapsulated in an MFMFrame (for example)
                if(mesytec_setup.readout.readout_complete())
                {
-                  //std::cout << "readout complete" << std::endl;
+                  //if(!i_read_some_data) std::cout << "readout complete - but event contains no data!" << std::endl;
                   // store event counter in case callback function 'aborts' (output buffer full)
                   // and we have to keep the event for later
                   storing_last_complete_event=true;
@@ -198,11 +212,16 @@ namespace mesytec
                   mesytec_setup.readout.begin_readout();
 
                   ++total_number_events_parsed;
+                  i_read_some_data=false;
                }
             }
             buf_pos+=4;
             bytes_left_in_buffer-=4;
          }
+
+         // copy end of buffer to be used when debugging
+         std::memcpy(store_end_of_last_buffer.data(), _buf+nbytes-last_buf_store_size, last_buf_store_size);
+
          return total_number_events_parsed;
       }
       template<typename CallbackFunction>
@@ -231,7 +250,7 @@ namespace mesytec
          while(words_to_read--)
          {
             auto next_word = read_data_word(buf_pos);
-            if(is_header(next_word))
+            if(is_event_header(next_word))
             {
                mod_data = mdpp::module_data{next_word};
                // in principle maximum event size is 255 32-bit words i.e. 1 header + 254 following words

@@ -156,7 +156,7 @@ void process_block (struct my_struct *,
       if(!first_buffer_has_been_read)
       {
          log_parse_errors << "BEGINNING OF FIRST BUFFER:" << std::endl;
-         MESYbuf->dump_buffer((const uint8_t*)event.data(),41,log_parse_errors,"",true);
+         MESYbuf->dump_buffer((const uint8_t*)event.data(), event.size(), event.size()/4, log_parse_errors, "", true);
          log_parse_errors << std::endl;
          first_buffer_has_been_read = true;
       }
@@ -176,7 +176,10 @@ void process_block (struct my_struct *,
             std::string now = asctime(timeinfo);
             now.erase(now.size()-1);//remove new line character
             log_parse_errors << now << std::endl;
-            MESYbuf->dump_buffer((const uint8_t*)event.data(), event.size(),log_parse_errors,what);
+            log_parse_errors << "DUMPING END OF PREVIOUS BUFFER:" << std::endl;
+            MESYbuf->dump_end_last_buffer(log_parse_errors);
+            log_parse_errors << "\n\nDUMPING CURRENT BUFFER:" << std::endl;
+            MESYbuf->dump_buffer((const uint8_t*)event.data(), event.size(), 100, log_parse_errors, what);
             log_parse_errors << std::endl << std::endl;
             std::cout << "[MESYTEC] : see /data/eindraX/e818_test_indra/acquisition/log/mesytec_parse_errors.log" << std::endl;
             // abandon buffer & try next one

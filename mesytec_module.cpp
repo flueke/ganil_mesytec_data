@@ -1,4 +1,5 @@
 #include "mesytec_module.h"
+#include <sstream>
 
 std::unordered_map<std::string,std::string> mesytec::module::data_type_aliases
       = {
@@ -34,7 +35,7 @@ uint32_t mesytec::read_data_word(const uint8_t *data)
    return x;
 }
 
-bool mesytec::is_header(uint32_t DATA)
+bool mesytec::is_event_header(uint32_t DATA)
 {
    return ((DATA & data_flags::header_found_mask) == data_flags::header_found);
 }
@@ -42,6 +43,7 @@ bool mesytec::is_header(uint32_t DATA)
 bool mesytec::is_end_of_event(uint32_t DATA)
 {
    return ((DATA & data_flags::eoe_found_mask) == data_flags::eoe_found_mask);
+//         && !is_frame_header(DATA);
 }
 
 bool mesytec::is_mdpp_data(uint32_t DATA)
@@ -61,10 +63,17 @@ bool mesytec::is_extended_ts(uint32_t DATA)
 
 std::string mesytec::decode_type(uint32_t DATA)
 {
-   if(is_header(DATA))
-      return "HEADER";
+   std::ostringstream ss;
+
+   if(is_frame_header(DATA))
+      return decode_frame_header(DATA);
+   else if(is_event_header(DATA))
+   {
+      ss << "EVENT-HEADER: Module-ID=" << std::hex << std::showbase << (int)module_id(DATA);
+      return ss.str();
+   }
    else if(is_end_of_event(DATA))
-      return "EOE";
+      return "END-OF-EVENT";
    else if(is_fill_word(DATA))
       return "FILL-WORD";
    else if(is_mdpp_data(DATA))
@@ -124,4 +133,134 @@ void mesytec::print_ext_ts(uint32_t DATA)
 bool mesytec::is_tgv_data(uint32_t DATA)
 {
    return ((DATA&data_flags::tgv_data_mask_hi)==0);
+}
+
+std::string mesytec::decode_frame_header(mesytec::u32 header)
+{
+   std::ostringstream ss;
+
+   ss << "FRAME-HEADER : ";
+   auto headerInfo = extract_frame_info(header);
+
+   switch (static_cast<frame_headers::FrameTypes>(headerInfo.type))
+   {
+       case frame_headers::SuperFrame:
+           ss << "Super Frame (len=" << headerInfo.len;
+           break;
+
+       case frame_headers::StackFrame:
+           ss << "Stack Result Frame (len=" << headerInfo.len;
+           break;
+
+       case frame_headers::BlockRead:
+           ss << "Block Read Frame (len=" << headerInfo.len;
+           break;
+
+       case frame_headers::StackError:
+           ss << "Stack Error Frame (len=" << headerInfo.len;
+           break;
+
+       case frame_headers::StackContinuation:
+           ss << "Stack Result Continuation Frame (len=" << headerInfo.len;
+           break;
+
+       case frame_headers::SystemEvent:
+           ss << "System Event (len=" << headerInfo.len;
+           break;
+   }
+
+   switch (static_cast<frame_headers::FrameTypes>(headerInfo.type))
+   {
+       case frame_headers::StackFrame:
+       case frame_headers::BlockRead:
+       case frame_headers::StackError:
+       case frame_headers::StackContinuation:
+           {
+               u16 stackNum = (header >> frame_headers::StackNumShift) & frame_headers::StackNumMask;
+               ss << ", stackNum=" << stackNum;
+           }
+           break;
+
+       case frame_headers::SuperFrame:
+       case frame_headers::SystemEvent:
+           break;
+   }
+
+   u8 frameFlags = (header >> frame_headers::FrameFlagsShift) & frame_headers::FrameFlagsMask;
+
+   ss << ", frameFlags=" << format_frame_flags(frameFlags) << ")";
+
+   return ss.str();
+}
+
+std::string mesytec::format_frame_flags(mesytec::u8 frameFlags)
+{
+   if (!frameFlags)
+       return "none";
+
+   std::vector<std::string> buffer;
+
+   if (frameFlags & frame_flags::Continue)
+       buffer.emplace_back("continue");
+
+   if (frameFlags & frame_flags::SyntaxError)
+       buffer.emplace_back("syntax");
+
+   if (frameFlags & frame_flags::BusError)
+       buffer.emplace_back("BERR");
+
+   if (frameFlags & frame_flags::Timeout)
+       buffer.emplace_back("timeout");
+
+   return util::join(buffer, ", ");
+}
+
+const char*mesytec::get_frame_flag_shift_name(mesytec::u8 flag_shift)
+{
+   if (flag_shift == frame_flags::shifts::Timeout)
+       return "Timeout";
+
+   if (flag_shift == frame_flags::shifts::BusError)
+       return "BusError";
+
+   if (flag_shift == frame_flags::shifts::SyntaxError)
+       return "SyntaxError";
+
+   if (flag_shift == frame_flags::shifts::Continue)
+       return "Continue";
+
+   return "Unknown";
+}
+
+std::string mesytec::system_event_type_to_string(mesytec::u8 eventType)
+{
+   namespace T = system_event::subtype;
+
+   switch (eventType)
+   {
+       case T::EndianMarker:
+           return "EndianMarker";
+       case T::BeginRun:
+           return "BeginRun";
+       case T::EndRun:
+           return "EndRun";
+       case T::MVMEConfig:
+           return "MVMEConfig";
+       case T::UnixTimetick:
+           return "UnixTimetick";
+       case T::Pause:
+           return "Pause";
+       case T::Resume:
+           return "Resume";
+       case T::MVLCCrateConfig:
+           return "MVLCCrateConfig";
+       case T::EndOfFile:
+           return "EndOfFile";
+       default:
+           break;
+   }
+
+   std::ostringstream output;
+   output << "unknown/custom (" << std::hex << std::showbase << eventType << ")";
+   return output.str();
 }
