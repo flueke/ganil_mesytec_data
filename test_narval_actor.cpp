@@ -4,9 +4,7 @@
 #include <fstream>
 //using namespace std::chrono_literals;
 #include "zmq.hpp"
-#define USE_NEW_PARSER
 #include "mesytec_buffer_reader.h"
-
 zmq::context_t context(1);	// for ZeroMQ communications
 
 int main()
@@ -40,9 +38,13 @@ int main()
 
    while(1)
    {
+#if defined (ZMQ_CPP14)
       if(pub->recv(event))
+#else
+      if(pub->recv(&event))
+#endif
       {
-         MESYbuf.read_buffer_collate_events((const uint8_t*)event.data(), event.size());
+         MESYbuf.dump_data_stream((const uint8_t*)event.data(), event.size());
       }
    }
 
