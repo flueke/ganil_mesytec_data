@@ -67,7 +67,7 @@ namespace mesytec
       {
          return mods[next].read;
       }
-      void accept_module_for_readout(uint8_t id)
+      bool accept_module_for_readout(uint8_t id)
       {
 #ifdef DEBUG
          std::cout << "accept_module_for_readout:" << std::hex << std::showbase << (int)id << std::endl;
@@ -76,14 +76,16 @@ namespace mesytec
          {
             index=next++;
             mods[index].read=true;
+            return true;
          }
-         else
-         {
-            if(!is_next_module(id))
-               throw(wrong_module_sequence());
-            else
-               throw(module_appears_twice());
-         }
+//         else
+//         {
+//            if(!is_next_module(id))
+//               throw(wrong_module_sequence());
+//            else
+//               throw(module_appears_twice());
+//         }
+         return false;
       }
       bool readout_complete() const
       {
