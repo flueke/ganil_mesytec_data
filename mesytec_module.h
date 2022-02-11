@@ -146,6 +146,13 @@ namespace mesytec
        }
 
    }
+   // added by me
+   inline bool is_system_unix_time(u32 header)
+   {
+      return (get_frame_type(header)==frame_headers::SystemEvent
+              && system_event::extract_subtype(header)==system_event::subtype::UnixTimetick);
+   }
+
    // end of mvlc_constants.h copy
 
    // copied from string_util.h
