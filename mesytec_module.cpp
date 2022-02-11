@@ -42,8 +42,7 @@ bool mesytec::is_event_header(uint32_t DATA)
 
 bool mesytec::is_end_of_event(uint32_t DATA)
 {
-   return ((DATA & data_flags::eoe_found_mask) == data_flags::eoe_found_mask);
-//         && !is_frame_header(DATA);
+   return ((DATA & data_flags::eoe_found_mask) == data_flags::eoe_found_mask) && !is_frame_header(DATA);
 }
 
 bool mesytec::is_mdpp_data(uint32_t DATA)
@@ -165,7 +164,9 @@ std::string mesytec::decode_frame_header(mesytec::u32 header)
            break;
 
        case frame_headers::SystemEvent:
-           ss << "System Event (len=" << headerInfo.len;
+           ss << "System Event : ";
+           ss << system_event_type_to_string(system_event::extract_subtype(header));
+           ss << " (len=" << headerInfo.len;
            break;
    }
 
