@@ -61,7 +61,7 @@ namespace mesytec
          uint32_t header_word;
          uint32_t eoe_word;
          uint16_t data_words : 10; // number of data items + 1 EOE
-         uint8_t module_id;
+         uint8_t module_id{0};
 
          void clear()
          {
@@ -110,8 +110,6 @@ namespace mesytec
          void ls(const Config& cfg) const
          {
             std::cout << " Module-ID=" << std::hex << std::showbase << (unsigned int)module_id << std::dec;
-            if(module_id==0) std::cout << "\t(MDPP-16)";
-            else std::cout << "\t(MDPP-32)";
             std::cout << " : event#" << event_counter;
             std::cout << "  [data words:" << data_words-1 << "]\n";
             for(auto& d : data) d.ls(cfg,module_id);
@@ -119,19 +117,24 @@ namespace mesytec
          void add_data_to_buffer(std::vector<uint32_t>& buf) const
          {
             // reconstruct mesytec data buffer for this module i.e. series of 32 bit words
-            //  HEADER - N x DATA - EOE  (in total, N+2 words)
+            //  HEADER - N x DATA  (in total, N+1 words)
             //
-            // if no data words are present for the module, only header & EoE
-            buf.push_back(header_word);
-            for(auto& v: data) v.add_data_to_buffer(buf);
-            buf.push_back(eoe_word);
+            // if no data words are present for the module, no data is added to buffer
+            // (not even the header)
+
+            if(data.size())
+            {
+               buf.push_back(header_word);
+               for(auto& v: data) v.add_data_to_buffer(buf);
+            }
          }
          size_t size_of_buffer() const
          {
             // returns size (in 4-byte words) of buffer required to hold all data for this module
+            // corresponding to header + N data words.
             //
-            // if no data words are present for the module, this is 2 (header + EoE)
-            return data.size() ? data.size()+2 : 2;
+            // if no data words are present for the module, this is 0
+            return data.size() ? data.size()+1 : 0;
          }
       };
 
