@@ -401,13 +401,36 @@ namespace mesytec
       }
 #endif
       template<typename CallbackFunction>
-      void read_event_in_buffer(const uint8_t* _buf, size_t nbytes, CallbackFunction F)
+      void read_event_in_buffer(const uint8_t* _buf, size_t nbytes, CallbackFunction F, u8 mfm_frame_rev)
       {
-         // To be used to read one (and only one) collated event contained in the buffer,
-         // for example to read data encapsulated in MFM frames.
+         // Decode buffers encapsulated in MFM frames, based on the frame revision id
+         //
+         // rev. 0: buffers included 'End-of-Event' words (which could in actual fact be StackFrame headers etc.),
+         //         as well as module headers even for modules with no data
+         //
+         // rev. 1: buffers only contain module header and data words for modules which fire/produce data
+         switch(mfm_frame_rev)
+         {
+            case 0:
+               read_event_in_buffer_v0(_buf,nbytes,F);
+               break;
+            case 1:
+               read_event_in_buffer_v1(_buf,nbytes,F);
+               break;
+            default:
+               throw std::runtime_error("unknown MFM frame revision");
+         }
+      }
+
+      template<typename CallbackFunction>
+      void read_event_in_buffer_v1(const uint8_t* _buf, size_t nbytes, CallbackFunction F)
+      {
+         // To be used to read one (and only one) collated event contained in the buffer encapsulated in MFM frames.
+         //
+         // This is for MFM frames with revision number 1.
          //
          // Read nbytes bytes from the buffer and call the callback function with the event as
-         // argument. Suitable signature for callback could be
+         // argument. Callback signature must be
          //
          //    void callback((mesytec::mdpp::event& Event);
          //
@@ -441,6 +464,66 @@ namespace mesytec
                auto& mod = mesytec_setup.get_module(mod_data.module_id);
                mod.set_data_word(next_word);
                mod_data.add_data( mod.data_type(), mod.channel_number(), mod.channel_data(), next_word);
+            }
+            buf_pos+=4;
+         }
+         // read all data - call function
+         F(event);
+      }
+      template<typename CallbackFunction>
+      void read_event_in_buffer_v0(const uint8_t* _buf, size_t nbytes, CallbackFunction F)
+      {
+         // To be used to read one (and only one) collated event contained in the buffer,
+         // for example to read data encapsulated in MFM frames.
+         //
+         // This is for MFM frames with revision number 0.
+         //
+         // Read nbytes bytes from the buffer and call the callback function with the event as
+         // argument. Suitable signature for callback could be
+         //
+         //    void callback((mesytec::mdpp::event& Event);
+         //
+         // Straight after the call, the event will be deleted, so don't bother keeping a copy of a
+         // reference to it, any data must be copied/moved in the callback function.
+         //
+         // Returns the number of complete collated events were parsed from the buffer, i.e. the number of times
+         // the callback function was called without throwing an exception.
+
+         assert(nbytes%4==0);
+
+         int words_to_read = nbytes/4;
+         buf_pos = const_cast<uint8_t*>(_buf);
+         mdpp::event event;
+
+         while(words_to_read--)
+         {
+            auto next_word = read_data_word(buf_pos);
+            if(is_event_header(next_word))
+            {
+               mod_data = mdpp::module_data{next_word};
+               // in principle maximum event size is 255 32-bit words i.e. 1 header + 254 following words
+               if(mod_data.data_words>=254) std::cerr << "Header indicates " << mod_data.data_words << " words in this event..." << std::endl;
+               got_header = true;
+               reading_data = false;
+            }
+            else if(is_mdpp_data(next_word)) {
+               reading_data=true;
+               auto& mod = mesytec_setup.get_module(mod_data.module_id);
+               mod.set_data_word(next_word);
+               mod_data.add_data( mod.data_type(), mod.channel_number(), mod.channel_data(), next_word);
+            }
+            // due to the confusion between 'end of event' and 'frame header' words in revision 0,
+            // here we replace the original test 'if(is_end_of_event...' with 'if(is_end_of_event || is_frame_header...'
+            // which corresponds to the effective behaviour of the code at the time when revision 0
+            // frames were produced & written.
+            else if((got_header || reading_data) && (is_end_of_event(next_word) || is_frame_header(next_word))) // ignore 2nd, 3rd, ... EOE
+            {
+               got_header=false;
+               reading_data=false;
+               mod_data.event_counter = event_counter(next_word);
+               mod_data.eoe_word = next_word;
+               event.event_counter = mod_data.event_counter;
+               event.add_module_data(mod_data);
             }
             buf_pos+=4;
          }
