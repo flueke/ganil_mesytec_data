@@ -340,6 +340,7 @@ namespace mesytec
             bytes_left_in_buffer-=4;
          }
 
+         return total_number_events_parsed;
       }
 
       uint32_t dump_data_stream(const uint8_t* _buf, size_t nbytes)
