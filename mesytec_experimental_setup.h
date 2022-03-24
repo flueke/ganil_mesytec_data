@@ -125,11 +125,16 @@ namespace mesytec
          return crate_map.size();
       }
 
+      void set_detector_module_channel(uint8_t modid, uint8_t nchan, const std::string& detname)
+      {
+         get_module(modid).get_channel_map()[nchan] = detname;
+      }
       /// Get name of detector associated with channel number
       std::string get_detector(uint8_t modid, uint8_t chan) const
       {
          return crate_map[modid][chan];
       }
+      void print();
    };
 }
 #endif // MESYTEC_EXPERIMENTAL_SETUP_H

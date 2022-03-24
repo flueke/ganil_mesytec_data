@@ -8,8 +8,8 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_library(mesytec_data SHARED mesytec_module.cpp mesytec_experimental_setup.cpp mesytec_data.cpp mesytec_buffer_reader.cpp)
-#add_executable(read_listfile read_listfile.cpp)
-#target_link_libraries(read_listfile mesytec_data)
+add_executable(test_event_builder test_event_builder.cpp)
+target_link_libraries(test_event_builder mesytec_data)
 
 #- set path to our cmake modules
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)

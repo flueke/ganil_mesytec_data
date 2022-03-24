@@ -67,6 +67,17 @@ namespace mesytec
       }
    }
 
+   void mesytec::experimental_setup::print()
+   {
+      for(auto& m : crate_map)
+      {
+         for(auto& d : m.second.get_channel_map())
+         {
+            printf("mod=%#x  chan=%d   det=%s\n", m.second.id, d.first, d.second.c_str());
+         }
+      }
+   }
+
    void experimental_setup::read_detector_correspondence(const std::string &mapfile)
    {
       // Read association between module, channel and detector from a file which
@@ -105,12 +116,6 @@ namespace mesytec
       while(_mapfile.good());
       _mapfile.close();
 
-      for(auto& m : crate_map)
-      {
-         for(auto& d : m.second.get_channel_map())
-         {
-            printf("mod=%#x  chan=%d   det=%s\n", m.second.id, d.first, d.second.c_str());
-         }
-      }
+      print();
    }
 }
