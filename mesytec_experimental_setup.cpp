@@ -15,6 +15,7 @@ namespace mesytec
       // MDPP-16,0x0,16,SCP
       // MDPP-32,0x10,32,QDC
       //
+      // Also, dummy modules must be present representing 'START_READOUT' and 'END_READOUT' markers in data
 
       std::ifstream _mapfile;
       _mapfile.open(mapfile);
@@ -31,6 +32,8 @@ namespace mesytec
       firmwares["QDC"] = mesytec::QDC;
       firmwares["CSI"] = mesytec::CSI;
       firmwares["TGV"] = mesytec::TGV;
+      firmwares["START_READOUT"] = mesytec::START_READOUT;
+      firmwares["END_READOUT"] = mesytec::END_READOUT;
       do
       {
          std::string dummy;
@@ -44,8 +47,15 @@ namespace mesytec
          std::getline(_mapfile,firm);
          if(_mapfile.good())
          {
-            crate_map[modid] = module{name, modid, nchan, firmwares[firm]};
-            readout.add_module(modid);
+            if(firmwares[firm]==START_READOUT)
+               readout.set_event_start_marker(modid);
+            else if(firmwares[firm]==END_READOUT)
+               readout.set_event_end_marker(modid);
+            else
+            {
+               crate_map[modid] = module{name, modid, nchan, firmwares[firm]};
+               readout.add_module(modid);
+            }
          }
       }
       while(_mapfile.good());

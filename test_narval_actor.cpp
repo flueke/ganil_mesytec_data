@@ -9,7 +9,7 @@ zmq::context_t context(1);	// for ZeroMQ communications
 
 int main()
 {
-   std::string path_to_setup = "/home/eindra/ganacq_manip/mesytec_test_1";
+   std::string path_to_setup = "/home/eindra/ganacq_manip/e818_test_indra";
    std::string zmq_port = "tcp://mesytecPC:5575";
 
    mesytec::experimental_setup mesytec_setup;

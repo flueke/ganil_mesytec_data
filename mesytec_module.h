@@ -262,7 +262,9 @@ namespace mesytec
       SCP,
       QDC,
       CSI,
-      TGV
+      TGV,
+      START_READOUT,
+      END_READOUT
    };
 
    struct end_of_buffer : public std::runtime_error

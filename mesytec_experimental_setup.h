@@ -7,89 +7,70 @@
 #ifdef DEBUG
 #include <iostream>
 #endif
+#include <set>
 
 namespace mesytec
 {
-   /**
-   \struct module_readout_status
-
-   simple structure to store module id and whether it has been read
-    */
-   struct module_readout_status
-   {
-      uint8_t id;
-      bool read{false};
-      module_readout_status(uint8_t _id)
-         : id(_id)
-      {}
-   };
-
-   class wrong_module_sequence : public std::runtime_error
-   {
-   public:
-      wrong_module_sequence() : runtime_error("wrong module sequence")
-      {}
-   };
-
-   class module_appears_twice : public std::runtime_error
-   {
-   public:
-      module_appears_twice() : runtime_error("module appears twice")
-      {}
-   };
-
    /**
     \class setup_readout
     */
    class setup_readout
    {
-      std::vector<module_readout_status> mods;
-      size_t index;
-      size_t next;
-      size_t number_of_modules;
+      std::set<uint8_t> set_of_modids;
+      uint8_t event_start_marker;
+      uint8_t event_end_marker;
+      enum class readout_state_t
+      {
+         waiting_for_event_start,
+         in_event_readout,
+         finished_readout
+      } readout_state;
+
    public:
+      /**
+         @brief add a module to the setup
+         @param id VME address of module (as it appears in data)
+       */
       void add_module(uint8_t id)
       {
-         mods.emplace_back(id);
+         set_of_modids.insert(id);
       }
+      void set_event_start_marker(uint8_t e){ event_start_marker=e; std::cout << "START_READOUT=" << std::hex << std::showbase << (int)e << std::endl; }
+      void set_event_end_marker(uint8_t e){ event_end_marker=e;  std::cout << "END_READOUT=" << std::hex << std::showbase << (int)e << std::endl; }
       void begin_readout()
       {
-         index=0;
-         next=0;
-         number_of_modules=mods.size();
-         for(auto& m : mods) m.read=false;
+         readout_state=readout_state_t::waiting_for_event_start;
       }
+      /**
+         @brief check if module is part of event being read
+
+         This is true if we are currently reading an event (read_event_start=true, read_event_end=false)
+         and the module corresponds to a known address in the setup
+
+         @param id VME address of module read from data
+         @return true if module is part of event
+       */
+      bool waiting_to_begin_cycle() const { return  readout_state == readout_state_t::waiting_for_event_start; }
+      bool in_readout_cycle() const { return  readout_state == readout_state_t::in_event_readout; }
+      bool readout_complete() const { return  readout_state == readout_state_t::finished_readout; }
       bool is_next_module(uint8_t id)
       {
-         return (id == mods[next].id);
-      }
-      bool next_module_readout_status() const
-      {
-         return mods[next].read;
-      }
-      bool accept_module_for_readout(uint8_t id)
-      {
-#ifdef DEBUG
-         std::cout << "accept_module_for_readout:" << std::hex << std::showbase << (int)id << std::endl;
-#endif
-         if(is_next_module(id) && !next_module_readout_status())
+         // if we are not in a readout cycle, do nothing until start of event marker is found
+         if(waiting_to_begin_cycle())
          {
-            index=next++;
-            mods[index].read=true;
-            return true;
+            if(id==event_start_marker) readout_state=readout_state_t::in_event_readout;
+            return false;
          }
-//         else
-//         {
-//            if(!is_next_module(id))
-//               throw(wrong_module_sequence());
-//            else
-//               throw(module_appears_twice());
-//         }
-         return false;
-      }
-      bool readout_complete() const
-      {
-         return next==number_of_modules;
+
+         // if we are in a readout cycle, check for end of event marker
+         if(in_readout_cycle() && id==event_end_marker)
+         {
+            readout_state=readout_state_t::finished_readout;
+            return false;
+         }
+
+         // OK if module id is part of setup
+         return set_of_modids.find(id)!=set_of_modids.end();
       }
    };
 
@@ -122,8 +103,15 @@ namespace mesytec
          //            {"MDPP-32", 0x10, 32, mesytec::SCP}
          //         });
          for(auto& mod : modules) {
-            crate_map[mod.id] = std::move(mod);
-            readout.add_module(mod.id);
+            if(mod.firmware == START_READOUT)
+               readout.set_event_start_marker(mod.id);
+            else if(mod.firmware == END_READOUT)
+               readout.set_event_end_marker(mod.id);
+            else
+            {
+               crate_map[mod.id] = std::move(mod);
+               readout.add_module(mod.id);
+            }
          }
       }
       void read_crate_map(const std::string& mapfile);

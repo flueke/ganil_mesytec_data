@@ -8,8 +8,8 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_library(mesytec_data SHARED mesytec_module.cpp mesytec_experimental_setup.cpp mesytec_data.cpp mesytec_buffer_reader.cpp)
-add_executable(read_listfile read_listfile.cpp)
-target_link_libraries(read_listfile mesytec_data)
+#add_executable(read_listfile read_listfile.cpp)
+#target_link_libraries(read_listfile mesytec_data)
 
 #- set path to our cmake modules
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
@@ -30,7 +30,8 @@ if(ZMQ_FOUND)
     install(FILES mesytec_narval_receiver.h DESTINATION ${CMAKE_INSTALL_PKGINCDIR})
 endif(ZMQ_FOUND)
 
-install(TARGETS mesytec_data read_listfile
+install(TARGETS mesytec_data
+# read_listfile
     EXPORT ${CMAKE_PROJECT_NAME}Exports
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

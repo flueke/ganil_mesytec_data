@@ -9,8 +9,6 @@
 #include <cstring>
 #include <ctime>
 
-#define USE_NEW_PARSER
-
 namespace mesytec
 {
    class buffer_reader
@@ -28,6 +26,8 @@ namespace mesytec
       bool got_tgv{false};
       static const size_t last_buf_store_size=200;// 4 * nwords
       std::array<uint8_t,last_buf_store_size> store_end_of_last_buffer;
+      std::array<uint32_t,4> tgv_data;
+      size_t tgv_index;
 
    public:
       void initialise_readout()
@@ -49,6 +49,7 @@ namespace mesytec
          total_number_events_parsed=0;
          got_tgv=false;
          mesytec_setup.readout.begin_readout();
+         tgv_index=0;
       }
 
       buffer_reader() = default;
@@ -103,130 +104,7 @@ namespace mesytec
             my_buf_pos+=4;
          }
       }
-#ifndef USE_NEW_PARSER
-      template<typename CallbackFunction>
-      uint32_t read_buffer_collate_events(const uint8_t* _buf, size_t nbytes, CallbackFunction F)
-      {
-         // To be used with a raw mvme data stream in order to sort and collate different module data
-         // according to the event counter in each module's EOE i.e. in Narval receiver actor.
-         //
-         // Read nbytes bytes from the buffer [must be a multiple of 4, i.e. only 4-byte words]
-         //
-         // Decode Mesytec MDPP data in the buffer, collate all module data with the same event counter
-         // (in their EOE word). When a complete event is ready (i.e. after reading data for each module
-         // in the setup given to the constructor) the callback function is called with the event as
-         // argument. Suitable signature for callback could be
-         //
-         //    void callback((mesytec::mdpp::event& Event);
-         //
-         // Straight after the call, the event will be deleted, so don't bother keeping a copy of a
-         // reference to it, any data must be copied/moved in the callback function.
-         //
-         // Returns the number of complete collated events were parsed from the buffer, i.e. the number of times
-         // the callback function was called without throwing an exception.
 
-         assert(nbytes%4==0);
-
-         int words_to_read = nbytes/4;
-
-         buf_pos = const_cast<uint8_t*>(_buf);
-         bytes_left_in_buffer = nbytes;
-
-         total_number_events_parsed = 0;
-
-         // initialize readout sequence
-         //mesytec_setup.readout.begin_readout();
-
-         got_tgv=false;
-         bool i_read_some_data=false;
-         while(words_to_read--)
-         {
-            auto next_word = read_data_word(buf_pos);
-            if(is_event_header(next_word))
-            {
-               //std::cout << "read data header" << std::endl;
-
-               if(got_header) throw(std::runtime_error("Read another header straight after first"));
-               else if(reading_data) throw(std::runtime_error("Read header while reading data, no EOE"));
-
-               mod_data = mdpp::module_data{next_word};
-               // check readout sequence - if wrong, exception thrown
-               mesytec_setup.readout.accept_module_for_readout(mod_data.module_id);
-
-               got_tgv = (mesytec_setup.get_module(mod_data.module_id).firmware == TGV);
-               //if(got_tgv) std::cout << "TGV header" << std::endl;
-
-               got_header = true;
-               reading_data = false;
-            }
-            else if(is_mdpp_data(next_word)) {
-               //std::cout << "reading data" << std::endl;
-               if(!got_header) throw(std::runtime_error("Read MDPP data without first reading header"));
-               reading_data=true;
-               mod_data.add_data(next_word);
-               i_read_some_data=true;
-            }
-            else if(got_tgv && is_tgv_data(next_word)) {
-               //std::cout << "reading TGV data" << std::endl;
-               if(!got_header) throw(std::runtime_error("Read TGV data without first reading header"));
-               reading_data=true;
-               mod_data.add_data(next_word);
-            }
-            else if((got_header || reading_data) && is_end_of_event(next_word)) // ignore 2nd, 3rd, ... EOE
-            {
-               //std::cout << "end of event reached" << std::endl;
-               got_header=false;
-               reading_data=false;
-               mod_data.event_counter = event_counter(next_word);
-               mod_data.eoe_word = next_word;
-
-               if(!got_tgv) event.event_counter = mod_data.event_counter;
-               else
-               {
-                  // is TGV happy ?
-                  if(!(mod_data.data[0].data_word & data_flags::tgv_data_ready_mask))
-                  {
-                     std::cout << "*** WARNING *** Got BAD TIMESTAMP from TGV (TGV NOT READY) *** WARNING ***" << std::endl;
-                  }
-                  // get 3 centrum timestamp words from TGV data
-                  event.tgv_ts_lo = (mod_data.data[1].data_word &= data_flags::tgv_data_mask_lo);
-                  event.tgv_ts_mid = (mod_data.data[2].data_word &= data_flags::tgv_data_mask_lo);
-                  event.tgv_ts_hi = (mod_data.data[3].data_word &= data_flags::tgv_data_mask_lo);
-
-                  got_tgv=false;
-               }
-
-               event.add_module_data(mod_data);
-               // have we received data (at least a header) for every module in the setup?
-               // if so then the event is complete and can be encapsulated in an MFMFrame (for example)
-               if(mesytec_setup.readout.readout_complete())
-               {
-                  //if(!i_read_some_data) std::cout << "readout complete - but event contains no data!" << std::endl;
-                  // store event counter in case callback function 'aborts' (output buffer full)
-                  // and we have to keep the event for later
-                  storing_last_complete_event=true;
-                  // call callback function
-                  F(event);
-                  storing_last_complete_event=false;// successful callback
-                  // reset event after sending/encapsulating
-                  event.clear();
-                  // begin new readout cycle
-                  mesytec_setup.readout.begin_readout();
-
-                  ++total_number_events_parsed;
-                  i_read_some_data=false;
-               }
-            }
-            buf_pos+=4;
-            bytes_left_in_buffer-=4;
-         }
-
-         // copy end of buffer to be used when debugging
-         std::memcpy(store_end_of_last_buffer.data(), _buf+nbytes-last_buf_store_size, last_buf_store_size);
-
-         return total_number_events_parsed;
-      }
-#else
       template<typename CallbackFunction>
       uint32_t read_buffer_collate_events(const uint8_t* _buf, size_t nbytes, CallbackFunction F)
       {
@@ -263,55 +141,63 @@ namespace mesytec
             {
                mdpp::module_data tmp{next_word};
                // check readout sequence
-               // module data is always in the order of the readout stack, therefore if this header is
-               // not the one we were expecting, we keep reading data until we find the beginning
-               // of the correct sequence [note that the readout sequence is not reset between 2
-               // buffers, in case a readout event is split over 2 successive buffers]
-               got_header = mesytec_setup.readout.accept_module_for_readout(tmp.module_id);
+               got_header = mesytec_setup.readout.is_next_module(tmp.module_id);
 
                if(got_header) {
-                  // when we find a new header, we add the previously read module to the list (if there is one)
-                  if(mod_data.module_id) event.add_module_data(mod_data);
+                  // when we meet a new module in the readout, we store any previously read data
+                  // for a previous module
+                  if(mod_data.module_id) {
+                     event.add_module_data(mod_data);
+                  }
                   mod_data=std::move(tmp);
-                  reading_data=false;
-                  // special case: the TGV is always the last to be read, and signals the (beginning of the) end of the event
                   got_tgv = (mesytec_setup.get_module(mod_data.module_id).firmware == TGV);
+                  if(got_tgv) {
+                     tgv_index=0;
+                  }
                }
             }
             else if(got_tgv && is_tgv_data(next_word)) {
                // this can never happen: if we read TGV data we must have first read the TGV header!
                if(!got_header) throw(std::runtime_error("Read TGV data without first reading header"));
-               reading_data=true;
-               mod_data.add_data(next_word);
+
+               //mod_data.add_data(next_word); do not store TGV data in event: the timestamp will be put in the MFMFrame header
+               tgv_data[tgv_index]=next_word;
+               ++tgv_index;
             }
             else if(is_mdpp_data(next_word))
             {
                // this can never happen: if we read data without first reading an events header,
                // we don't know which module sent the data!
                if(!got_header) throw(std::runtime_error("Read MDPP data without first reading header"));
-               reading_data=true;
                mod_data.add_data(next_word);
             }
-            else if(mesytec_setup.readout.readout_complete() && got_tgv && reading_data && is_end_of_event(next_word))
+
+            if(mesytec_setup.readout.readout_complete())
             {
-               // the end of the readout of all modules is signalled by the End-of-event word 0xC0000000
-               // after the TGV data (note that this is the ONLY EOE word which is systematically present in
-               // the data either after a module header or after some module data).
+               // the end of the readout of all modules is signalled by the END_READOUT dummy module
 
                got_header=false;
-               reading_data=false;
-               // check TGV status flag
-               if(!(mod_data.data[0].data_word & data_flags::tgv_data_ready_mask))
+
+               // store any previously read data for a previous module
+               if(mod_data.module_id) {
+                  event.add_module_data(mod_data);
+               }
+
+               // check TGV data
+               if(!(tgv_data[0] & data_flags::tgv_data_ready_mask))
                {
                   std::cout << "*** WARNING *** Got BAD TIMESTAMP from TGV (TGV NOT READY) *** WARNING ***" << std::endl;
+                  event.tgv_ts_lo = 0;
+                  event.tgv_ts_mid = 0;
+                  event.tgv_ts_hi = 0;
                }
-               // get 3 centrum timestamp words from TGV data
-               event.tgv_ts_lo = (mod_data.data[1].data_word &= data_flags::tgv_data_mask_lo);
-               event.tgv_ts_mid = (mod_data.data[2].data_word &= data_flags::tgv_data_mask_lo);
-               event.tgv_ts_hi = (mod_data.data[3].data_word &= data_flags::tgv_data_mask_lo);
-
-               // add TGV module to event
-               event.add_module_data(mod_data);
+               else
+               {
+                  // get 3 centrum timestamp words from TGV data
+                  event.tgv_ts_lo = (tgv_data[1] &= data_flags::tgv_data_mask_lo);
+                  event.tgv_ts_mid = (tgv_data[2] &= data_flags::tgv_data_mask_lo);
+                  event.tgv_ts_hi = (tgv_data[3] &= data_flags::tgv_data_mask_lo);
+               }
 
                // clear module data ready for next full readout
                mod_data.clear();
@@ -400,7 +286,7 @@ namespace mesytec
                std::cout << tab << std::hex << std::showbase << next_word << " " << decode_type(next_word) << std::endl;
          }
       }
-#endif
+
       template<typename CallbackFunction>
       void read_event_in_buffer(const uint8_t* _buf, size_t nbytes, CallbackFunction F, u8 mfm_frame_rev)
       {
@@ -451,6 +337,7 @@ namespace mesytec
          while(words_to_read--)
          {
             auto next_word = read_data_word(buf_pos);
+
             if(is_event_header(next_word))
             {
                // add previously read module to event
@@ -468,6 +355,9 @@ namespace mesytec
             }
             buf_pos+=4;
          }
+         // add last read module to event
+         if(mod_data.module_id) event.add_module_data(mod_data);
+
          // read all data - call function
          F(event);
       }
