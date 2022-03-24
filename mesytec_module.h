@@ -264,7 +264,8 @@ namespace mesytec
       CSI,
       TGV,
       START_READOUT,
-      END_READOUT
+      END_READOUT,
+      MVLC_SCALER
    };
 
    struct end_of_buffer : public std::runtime_error
@@ -357,6 +358,9 @@ namespace mesytec
 
       /// Get name of detector associated with channel number
       std::string operator[](uint8_t nchan){ return channel_map[nchan]; }
+
+      bool is_mdpp_module() const { return (firmware==QDC) || (firmware==SCP); }
+      bool is_mvlc_scaler() const { return firmware==MVLC_SCALER; }
    };
 
    std::map<uint8_t, module> define_setup(std::vector<module>&& modules);

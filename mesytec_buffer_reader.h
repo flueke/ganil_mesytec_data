@@ -24,6 +24,7 @@ namespace mesytec
       size_t bytes_left_in_buffer=0;
       uint32_t total_number_events_parsed;
       bool got_tgv{false};
+      bool got_mvlc_scaler{false};
       static const size_t last_buf_store_size=200;// 4 * nwords
       std::array<uint8_t,last_buf_store_size> store_end_of_last_buffer;
       std::array<uint32_t,4> tgv_data;
@@ -48,6 +49,7 @@ namespace mesytec
          bytes_left_in_buffer=0;
          total_number_events_parsed=0;
          got_tgv=false;
+         got_mvlc_scaler=false;
          mesytec_setup.readout.begin_readout();
          tgv_index=0;
       }
@@ -154,6 +156,8 @@ namespace mesytec
                   if(got_tgv) {
                      tgv_index=0;
                   }
+                  else
+                     got_mvlc_scaler = (mesytec_setup.get_module(mod_data.module_id).firmware == MVLC_SCALER);
                }
             }
             else if(got_tgv && is_tgv_data(next_word)) {
@@ -163,6 +167,16 @@ namespace mesytec
                //mod_data.add_data(next_word); do not store TGV data in event: the timestamp will be put in the MFMFrame header
                tgv_data[tgv_index]=next_word;
                ++tgv_index;
+            }
+            else if(got_mvlc_scaler)
+            {
+               if(!is_end_of_event(next_word))
+               {
+                  // read data coming from MVLC counters
+                  mod_data.add_data(next_word);
+               }
+               else
+                  got_mvlc_scaler=false;
             }
             else if(is_mdpp_data(next_word))
             {
@@ -203,12 +217,14 @@ namespace mesytec
                mod_data.clear();
 
                got_tgv=false;
+               got_mvlc_scaler=false;
 
                // in case callback function 'aborts' (output buffer full) and we have to keep the event for later
                storing_last_complete_event=true;
 
                // call callback function
                F(event);
+               ++event.event_counter;
 
                storing_last_complete_event=false;// successful callback
 
@@ -258,7 +274,7 @@ namespace mesytec
                   }
                }
             }
-            else if(!is_fill_word(next_word))
+            //else if(!is_fill_word(next_word))
             {
                std::cout << std::hex << std::showbase << next_word << " " << decode_type(next_word) << std::endl;
             }
@@ -333,6 +349,7 @@ namespace mesytec
          buf_pos = const_cast<uint8_t*>(_buf);
          mdpp::event event;
          mod_data.clear();
+         module& current_module;
 
          while(words_to_read--)
          {
@@ -345,13 +362,20 @@ namespace mesytec
 
                // new module
                mod_data = mdpp::module_data{next_word};
+               current_module = mesytec_setup.get_module(mod_data.module_id);
                // in principle maximum event size is 255 32-bit words i.e. 1 header + 254 following words
                if(mod_data.data_words>=254) std::cerr << "Header indicates " << mod_data.data_words << " words in this event..." << std::endl;
+
+               got_mvlc_scaler = current_module.firmware == MVLC_SCALER;
+            }
+            else if(got_mvlc_scaler)
+            {
+               mod_data.add_data(next_word);
             }
             else if(is_mdpp_data(next_word)) {
-               auto& mod = mesytec_setup.get_module(mod_data.module_id);
-               mod.set_data_word(next_word);
-               mod_data.add_data( mod.data_type(), mod.channel_number(), mod.channel_data(), next_word);
+               current_module.set_data_word(next_word);
+               mod_data.add_data( current_module.data_type(), current_module.channel_number(),
+                                  current_module.channel_data(), next_word);
             }
             buf_pos+=4;
          }

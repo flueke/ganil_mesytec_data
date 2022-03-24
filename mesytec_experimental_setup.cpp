@@ -34,6 +34,7 @@ namespace mesytec
       firmwares["TGV"] = mesytec::TGV;
       firmwares["START_READOUT"] = mesytec::START_READOUT;
       firmwares["END_READOUT"] = mesytec::END_READOUT;
+      firmwares["MVLC_SCALER"] = mesytec::MVLC_SCALER;
       do
       {
          std::string dummy;
