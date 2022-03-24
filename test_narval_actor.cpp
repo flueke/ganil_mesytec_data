@@ -5,7 +5,7 @@
 //using namespace std::chrono_literals;
 #include "zmq.hpp"
 #include "mesytec_buffer_reader.h"
-zmq::context_t context(1);	// for ZeroMQ communications
+zmq::context_t context;	// for ZeroMQ communications
 
 int main()
 {

@@ -6,7 +6,8 @@
 #include <iostream>
 #include <fstream>
 #include <algorithm>
-#include "mesytec_module.h"
+#include <cassert>
+#include "mesytec_experimental_setup.h"
 
 namespace mesytec
 {
@@ -42,11 +43,11 @@ namespace mesytec
             }
             return *this;
          }
-         template<typename Config>
-         void ls(const Config& cfg, uint8_t mod_id) const
+         void ls(const mesytec::experimental_setup &cfg, uint8_t mod_id) const
          {
-            std::cout << "\tCHAN#" << (unsigned int)channel << "\tDETECTOR=" << cfg.get_detector(mod_id,channel)
-                         << "\tTYPE=" << data_type << "\tDATA=" << data << std::endl;
+            auto mod = cfg.get_module(mod_id);
+            mod.set_data_word(data_word);
+            mod.print_mdpp_data();
          }
          void add_data_to_buffer(std::vector<uint32_t>& buf) const
          {
@@ -106,13 +107,27 @@ namespace mesytec
          {
             data.emplace_back(data_word);
          }
-         template<typename Config>
-         void ls(const Config& cfg) const
+         void ls(const mesytec::experimental_setup & cfg) const
          {
             std::cout << " Module-ID=" << std::hex << std::showbase << (unsigned int)module_id << std::dec;
-            std::cout << " : event#" << event_counter;
-            std::cout << "  [data words:" << data_words-1 << "]\n";
-            for(auto& d : data) d.ls(cfg,module_id);
+            auto mod = cfg.get_module(module_id);
+            std::cout << " " << mod.name;
+            if(mod.is_mdpp_module())
+            {
+               std::cout << "  [data words:" << data.size() << "]\n";
+               for(auto& d : data) d.ls(cfg,module_id);
+            }
+            else if(mod.is_mvlc_scaler())
+            {
+               // 4 data words of 16 bits (least significant is first word) => 64 bit scaler
+               assert(data.size()==4);
+               uint64_t x=0;
+               int i=0;
+               for(auto& d : data) x += ((uint64_t)d.data_word)<<(16*(i++));
+               std::cout << " = " << std::hex << std::showbase << x << std::endl;
+            }
+            else
+               std::cout << std::endl;
          }
          void add_data_to_buffer(std::vector<uint32_t>& buf) const
          {
@@ -140,27 +155,22 @@ namespace mesytec
 
       struct event
       {
-         std::vector<module_data> modules;
+         std::vector<module_data> modules = std::vector<module_data>(50);
          uint32_t event_counter;
          uint16_t tgv_ts_lo,tgv_ts_mid,tgv_ts_hi;
 
          void clear()
          {
             modules.clear();
-            event_counter=0;
          }
          const std::vector<module_data>& get_module_data() const { return modules; }
-         event()
-         {
-            modules.reserve(21); // max number of modules in vme chassis
-         }
+
          void add_module_data(module_data& d){ modules.push_back(std::move(d)); }
          bool is_full(unsigned int number_of_modules) const
          {
             return (modules.size()==number_of_modules);
          }
-         template<typename Config>
-         void ls(const Config& cfg) const
+         void ls(const mesytec::experimental_setup & cfg) const
          {
             std::cout << " Event# " << event_counter << std::endl;
             for(auto& m: modules) m.ls(cfg);

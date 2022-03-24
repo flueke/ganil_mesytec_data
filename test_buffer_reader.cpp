@@ -3,61 +3,47 @@
 #include <chrono>
 #include <thread>
 #include <ctime>
-using namespace std::literals::chrono_literals;
+zmq::context_t context;	// for ZeroMQ communications
 
-int main(int argc, char*argv[])
+int main()
 {
-   // pass URL:PORT as argument
-   std::string zmq_port{"tcp://"};
-   zmq_port.append(argv[1]);
+   std::string path_to_setup = "/home/eindra/ganacq_manip/e818_test_indra";
+   std::string zmq_port = "tcp://mesytecPC:5575";
 
-   zmq::context_t context(1);	// for ZeroMQ communications
+   mesytec::experimental_setup mesytec_setup;
+   mesytec_setup.read_crate_map(path_to_setup + "/crate_map.dat");
 
-   zmq::socket_t* pub;
+   mesytec::buffer_reader MESYbuf{mesytec_setup};
+
+   zmq::socket_t *pub;
    try {
       pub = new zmq::socket_t(context, ZMQ_SUB);
    } catch (zmq::error_t &e) {
-      std::cout << "ERROR: " << "process_start: failed to start ZeroMQ event spy: " << e.what () << std::endl;
+      std::cout << "[MESYTEC] : ERROR: " << "process_start: failed to start ZeroMQ event spy: " << e.what () << std::endl;
    }
 
-   int timeout=500;//milliseconds
+   int timeout=100;//milliseconds
    pub->setsockopt(ZMQ_RCVTIMEO, &timeout, sizeof(int));
    try {
       pub->connect(zmq_port.c_str());
    } catch (zmq::error_t &e) {
-      std::cout << "ERROR" << "process_start: failed to bind ZeroMQ endpoint " << zmq_port << ": " << e.what () << std::endl;
+      std::cout << "[MESYTEC] : ERROR" << "process_start: failed to bind ZeroMQ endpoint " << zmq_port << ": " << e.what () << std::endl;
    }
-   std::cout << "Connected to MESYTEC-Spy " << zmq_port << std::endl;
+   std::cout << "[MESYTEC] : Connected to MESYTECSpy " << zmq_port << std::endl;
    pub->setsockopt(ZMQ_SUBSCRIBE, "", 0);
 
    zmq::message_t event;
 
-   auto mesytec_setup = mesytec::define_setup
-         (
-            {
-               {"MDPP-16", 0x0, 16, mesytec::SCP},
-               {"MDPP-32", 0x10, 32, mesytec::SCP}
-            }
-            );
-
-   mesytec::buffer_reader readBuf{mesytec_setup};
-
    while(1)
    {
-      try{
-         if(!pub->recv(event))
-         {
-            std::cout << "Got no event from ZMQ : ";
-            std::time_t result = std::time(nullptr);
-            std::cout << std::asctime(std::localtime(&result)) << std::endl;
-            std::this_thread::sleep_for(1000ms);
-         }
+#if defined (ZMQ_CPP14)
+      if(pub->recv(event))
+#else
+      if(pub->recv(&event))
+#endif
+      {
+         MESYbuf.read_buffer_collate_events( (const uint8_t*)event.data(), event.size(),
+                                             [=](mesytec::mdpp::event& Event){ Event.ls(mesytec_setup); });
       }
-      catch(zmq::error_t &e) {
-         std::cout << "timeout on ZeroMQ endpoint : " << e.what () << std::endl;
-         return 1;
-      }
-
-      readBuf.read_buffer( (const uint8_t*)event.data(), event.size(), [](mesytec::mdpp_event& Event){ Event.ls(); });
    }
 }
