@@ -349,7 +349,7 @@ namespace mesytec
          buf_pos = const_cast<uint8_t*>(_buf);
          mdpp::event event;
          mod_data.clear();
-         module& current_module;
+         module *current_module;
 
          while(words_to_read--)
          {
@@ -362,20 +362,20 @@ namespace mesytec
 
                // new module
                mod_data = mdpp::module_data{next_word};
-               current_module = mesytec_setup.get_module(mod_data.module_id);
+               current_module = &mesytec_setup.get_module(mod_data.module_id);
                // in principle maximum event size is 255 32-bit words i.e. 1 header + 254 following words
                if(mod_data.data_words>=254) std::cerr << "Header indicates " << mod_data.data_words << " words in this event..." << std::endl;
 
-               got_mvlc_scaler = current_module.firmware == MVLC_SCALER;
+               got_mvlc_scaler = current_module->firmware == MVLC_SCALER;
             }
             else if(got_mvlc_scaler)
             {
                mod_data.add_data(next_word);
             }
             else if(is_mdpp_data(next_word)) {
-               current_module.set_data_word(next_word);
-               mod_data.add_data( current_module.data_type(), current_module.channel_number(),
-                                  current_module.channel_data(), next_word);
+               current_module->set_data_word(next_word);
+               mod_data.add_data( current_module->data_type(), current_module->channel_number(),
+                                  current_module->channel_data(), next_word);
             }
             buf_pos+=4;
          }
