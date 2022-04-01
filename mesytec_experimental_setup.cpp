@@ -116,7 +116,5 @@ namespace mesytec
       }
       while(_mapfile.good());
       _mapfile.close();
-
-      print();
    }
 }
