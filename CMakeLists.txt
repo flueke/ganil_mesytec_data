@@ -24,7 +24,9 @@ if(ZMQ_FOUND)
     target_link_libraries(test_narval_actor mesytec_data ${ZMQ_LIBRARIES})
     add_executable(test_buffer_reader test_buffer_reader.cpp)
     target_link_libraries(test_buffer_reader mesytec_data ${ZMQ_LIBRARIES})
-    install(TARGETS mesytec_narval_receiver test_narval_actor test_buffer_reader
+    add_executable(mesytec_receiver_mfm_transmitter mesytec_receiver_mfm_transmitter.cpp)
+    target_link_libraries(mesytec_receiver_mfm_transmitter mesytec_data ${ZMQ_LIBRARIES})
+    install(TARGETS mesytec_narval_receiver test_narval_actor test_buffer_reader mesytec_receiver_mfm_transmitter
         EXPORT ${CMAKE_PROJECT_NAME}Exports
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
