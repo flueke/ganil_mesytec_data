@@ -5,11 +5,11 @@
 //using namespace std::chrono_literals;
 #include "zmq.hpp"
 #include "mesytec_buffer_reader.h"
-zmq::context_t context;	// for ZeroMQ communications
+zmq::context_t context(1);	// for ZeroMQ communications
 
 int main()
 {
-   std::string path_to_setup = "/home/eindra/ganacq_manip/e818_test_indra";
+   std::string path_to_setup = "/home/eindra/ganacq_manip/e818";
    std::string zmq_port = "tcp://mesytecPC:5575";
 
    mesytec::experimental_setup mesytec_setup;
@@ -41,12 +41,15 @@ int main()
 #if defined (ZMQ_CPP14)
       if(pub->recv(event))
 #else
-      if(pub->recv(&event))
+      while(!pub->recv(&event)) ;
 #endif
       {
+         std::cout << "BUFFER SIZE = " << std::dec << event.size() << " BYTES" << std::endl;
          MESYbuf.dump_data_stream((const uint8_t*)event.data(), event.size());
       }
    }
+
+   pub->close();
 
    return 0;
 }

@@ -255,6 +255,8 @@ namespace mesytec
       const uint32_t fill_word_found = 0x00000000;
       const uint32_t extended_ts_mask = 0xF0000000;
       const uint32_t extended_ts = 0x20000000;
+      const uint32_t exts_friend_mask = 0xFFFF0000;
+      const uint32_t exts_friend = 0x10000;
    };
 
    enum firmware_t
@@ -368,10 +370,12 @@ namespace mesytec
    uint32_t read_data_word(const uint8_t* data);
    bool is_event_header(uint32_t DATA);
    bool is_end_of_event(uint32_t DATA);
+   bool is_end_of_event_tgv(uint32_t DATA);
    bool is_mdpp_data(uint32_t DATA);
    bool is_tgv_data(uint32_t DATA);
    bool is_fill_word(uint32_t DATA);
    bool is_extended_ts(uint32_t DATA);
+   bool is_exts_friend(uint32_t DATA);
    void print_type(uint32_t DATA);
    std::string decode_type(uint32_t DATA);
    uint16_t length_of_data(uint32_t DATA);

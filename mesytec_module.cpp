@@ -45,6 +45,12 @@ bool mesytec::is_end_of_event(uint32_t DATA)
    return ((DATA & data_flags::eoe_found_mask) == data_flags::eoe_found_mask) && !is_frame_header(DATA);
 }
 
+bool mesytec::is_end_of_event_tgv(uint32_t DATA)
+{
+   // TGV & MVLC scaler data use exact 0xC0000000 end of event marker
+   return (DATA == data_flags::eoe_found_mask);
+}
+
 bool mesytec::is_mdpp_data(uint32_t DATA)
 {
    return ((DATA & data_flags::mdpp_data_mask) == data_flags::mdpp_data);
@@ -60,6 +66,11 @@ bool mesytec::is_extended_ts(uint32_t DATA)
    return ((DATA & data_flags::extended_ts_mask) == data_flags::extended_ts);
 }
 
+bool mesytec::is_exts_friend(uint32_t DATA)
+{
+   return ((DATA & data_flags::exts_friend_mask) == data_flags::exts_friend);
+}
+
 std::string mesytec::decode_type(uint32_t DATA)
 {
    std::ostringstream ss;
@@ -68,7 +79,9 @@ std::string mesytec::decode_type(uint32_t DATA)
       return decode_frame_header(DATA);
    else if(is_event_header(DATA))
    {
-      ss << "EVENT-HEADER: Module-ID=" << std::hex << std::showbase << (int)module_id(DATA);
+      if(module_id(DATA)==0x1) ss << "TGV";
+      else
+         ss << "EVENT-HEADER: Module-ID=" << std::hex << std::showbase << (int)module_id(DATA);
       return ss.str();
    }
    else if(is_end_of_event(DATA))
@@ -79,6 +92,8 @@ std::string mesytec::decode_type(uint32_t DATA)
       return "MDPP-DATA";
    else if(is_extended_ts(DATA))
       return "EXT-TS";
+   else if(is_exts_friend(DATA))
+      return "EXT-TS-FRIEND";
    else
       return "(unknown)";
 }
@@ -138,7 +153,7 @@ std::string mesytec::decode_frame_header(mesytec::u32 header)
 {
    std::ostringstream ss;
 
-   ss << "FRAME-HEADER : ";
+   ss << std::hex << std::showbase << header << std::dec << " FRAME-HEADER : ";
    auto headerInfo = extract_frame_info(header);
 
    switch (static_cast<frame_headers::FrameTypes>(headerInfo.type))

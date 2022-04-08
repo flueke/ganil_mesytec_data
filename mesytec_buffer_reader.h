@@ -23,12 +23,18 @@ namespace mesytec
       uint8_t* buf_pos=nullptr;
       size_t bytes_left_in_buffer=0;
       uint32_t total_number_events_parsed;
-      bool got_tgv{false};
-      bool got_mvlc_scaler{false};
+      bool reading_tgv{false};
+      bool reading_mvlc_scaler{false};
+      bool reading_mdpp{false};
       static const size_t last_buf_store_size=200;// 4 * nwords
       std::array<uint8_t,last_buf_store_size> store_end_of_last_buffer;
-      std::array<uint32_t,4> tgv_data;
-      size_t tgv_index;
+      std::array<uint32_t,4> mesytec_tgv_data;
+      uint mesytec_tgv_index,mvlc_scaler_index;
+      uint64_t last_timestamp{0};
+      double max_timestamp_diff{3600.};
+      int buf_copy{200};
+      uint8_t last_buffer[200];
+      bool have_last_buffer=false;
 
    public:
       void initialise_readout()
@@ -48,10 +54,14 @@ namespace mesytec
          buf_pos=nullptr;
          bytes_left_in_buffer=0;
          total_number_events_parsed=0;
-         got_tgv=false;
-         got_mvlc_scaler=false;
+         reading_tgv=false;
+         reading_mvlc_scaler=false;
+         reading_mdpp=false;
          mesytec_setup.readout.begin_readout();
-         tgv_index=0;
+         mesytec_tgv_index=0;
+         last_timestamp=0;
+         mvlc_scaler_index=0;
+         have_last_buffer=false;
       }
 
       buffer_reader() = default;
@@ -107,6 +117,111 @@ namespace mesytec
          }
       }
 
+      void rollback_function(int rollback,int bytes_from_start,int bytes_to_end)
+      {
+         auto in_buf = buf_pos;
+         auto rstart=rollback;
+         auto rend=rollback;
+         if(rstart*4 > bytes_from_start)
+         {
+            rstart = bytes_from_start/4;
+            std::cout << "ROLLBACK FROM START OF BUFFER: rstart=" << std::dec << -rstart << std::endl;
+            if(have_last_buffer)
+            {
+               std::cout << "HERE IS THE END OF THE PREVIOUS BUFFER" << std::endl;
+               for(int i=0; i<buf_copy; i+=4)
+               {
+                  auto frame = read_data_word(last_buffer+i);
+                  if(is_frame_header(frame)) {
+                     std::cout << std::dec << i << ":" << decode_frame_header(frame)<< std::dec << std::endl;
+                  }
+                  else
+                  {
+                     auto dec_word = decode_type(frame);
+                     std::cout << std::dec << i << ":" << std::hex << std::showbase << frame << " " << dec_word << std::dec << std::endl;
+                  }
+               }
+             }
+         }
+         if(rend*4 > bytes_to_end)
+         {
+            std::cout << "ROLLBACK TO END OF BUFFER" << std::dec << rend << std::endl;
+            rend = bytes_to_end/4;
+         }
+         for(int i=-rstart; i<=rend; ++i)
+         {
+            auto frame = read_data_word(in_buf+i*4);
+            if(is_frame_header(frame)) {
+               std::cout << std::dec << i << ":" << decode_frame_header(frame)<< std::dec << std::endl;
+            }
+            else
+            {
+               auto dec_word = decode_type(frame);
+               std::cout << std::dec << i << ":" << std::hex << std::showbase << frame << " " << dec_word << std::dec << std::endl;
+            }
+         }
+      }
+
+      template<typename CallbackFunction>
+      uint32_t treat_complete_event(CallbackFunction F)
+   {
+      // the end of the readout of all modules is signalled by the END_READOUT dummy module
+
+      got_header=false;
+      //if(printit) std::cout << "readout complete" << std::endl;
+
+      // check TGV data
+      event.tgv_ts_lo = 0;
+      event.tgv_ts_mid = 0;
+      event.tgv_ts_hi = 0;
+      //std::cout << "tgv = " << mesytec_tgv_index << " scaler = " << mvlc_scaler_index << std::endl;
+      if(mesytec_tgv_index==4){
+         if(!(mesytec_tgv_data[0] & data_flags::tgv_data_ready_mask))
+         {
+            std::cout << "*** WARNING *** Got BAD TIMESTAMP from TGV (TGV NOT READY) *** WARNING ***" << std::endl;
+            for(int i=0; i<mesytec_tgv_index; ++i)
+               std::cout << std::dec << i << " : " << std::hex << std::showbase << mesytec_tgv_data[i] << std::endl;
+         }
+         else
+         {
+            //if(printit) std::cout << "TGV data is OK" << std::endl;
+            // get 3 centrum timestamp words from TGV data
+            event.tgv_ts_lo = (mesytec_tgv_data[1] &= data_flags::tgv_data_mask_lo);
+            event.tgv_ts_mid = (mesytec_tgv_data[2] &= data_flags::tgv_data_mask_lo);
+            event.tgv_ts_hi = (mesytec_tgv_data[3] &= data_flags::tgv_data_mask_lo);
+            //std::cout << event.tgv_ts_hi << " " << event.tgv_ts_mid << " " << event.tgv_ts_lo << std::endl;
+         }
+      }
+
+      // clear module data ready for next full readout
+      mod_data.clear();
+
+      reading_tgv=false;
+      reading_mvlc_scaler=false;
+      reading_mdpp=false;
+
+      // in case callback function 'aborts' (output buffer full) and we have to keep the event for later
+      storing_last_complete_event=true;
+
+//               if(printit)
+//               {
+//                  event.ls(mesytec_setup);
+//               }
+      // call callback function
+      F(event);
+      ++event.event_counter;
+
+      storing_last_complete_event=false;// successful callback
+
+      // reset event after sending/encapsulating
+      event.clear();
+
+      // begin new readout cycle
+      mesytec_setup.readout.begin_readout();
+
+      ++total_number_events_parsed;
+   }
+
       template<typename CallbackFunction>
       uint32_t read_buffer_collate_events(const uint8_t* _buf, size_t nbytes, CallbackFunction F)
       {
@@ -129,113 +244,170 @@ namespace mesytec
 
 
          assert(nbytes%4==0); // the buffer should only contain 32-bit words
+         //dump_data_stream(_buf,nbytes);
 
          buf_pos = const_cast<uint8_t*>(_buf);
          bytes_left_in_buffer = nbytes;
 
          total_number_events_parsed = 0;
 
+         // if there is a system event unix time tick at the beginning of the frame,
+         // no data is to be read until EXT-TS frame and EXT-TS-FRIEND frame follow.
+         bool wait_for_ext_ts=false;
+         bool seen_ext_ts=false;
+
+//         int nwordsread=0;
+         //bool printit=true;
+//         std::cout << "=============================================================================" << std::endl;
+//         std::cout << "       *************         READING NEW BUFFER         *************        " << std::endl;
+//         std::cout << "=============================================================================" << std::endl;
+
          while(bytes_left_in_buffer)
          {
             auto next_word = read_data_word(buf_pos);
+//            ++nwordsread;
+//            if(nwordsread>200) printit=false;
 
+//            if(printit) std::cout << std::hex << std::showbase << next_word << std::dec << std::endl;
+
+            // Ignore all frame headers
+            if(is_frame_header(next_word))
+            {
+               if(is_system_unix_time(next_word))
+               {
+                  if(!seen_ext_ts) wait_for_ext_ts=true;
+                  // for system event with unix time tick, also skip the following word (unix date/time)
+                  buf_pos+=4;
+                  bytes_left_in_buffer-=4;
+                  //if(printit) std::cout << "unix-time ignored" << std::endl;
+                  if(!bytes_left_in_buffer) break;
+               }
+               buf_pos+=4;
+               bytes_left_in_buffer-=4;
+               //if(printit) std::cout << "frame_header ignored" << std::endl;
+               continue;
+            }
+            // Ignore all 'EXT-TS' (0x2a7d00d9) and the following 'friend' frame (0x1xxxx)
+            if(is_extended_ts(next_word) || is_exts_friend(next_word))
+            {
+               // advance to next 32-bit word in buffer
+               buf_pos+=4;
+               bytes_left_in_buffer-=4;
+               seen_ext_ts=true;
+               wait_for_ext_ts=false;
+               //if(printit) std::cout << "ext-ts ignored" << std::endl;
+               continue;
+            }
             if(is_event_header(next_word))
             {
+//               if(printit){
+//                  auto dec_word = decode_type(next_word);
+//                  std::cout << std::hex << std::showbase << next_word << " " << dec_word << std::dec << std::endl;
+//               }
                mdpp::module_data tmp{next_word};
                // check readout sequence
                got_header = mesytec_setup.readout.is_next_module(tmp.module_id);
-
+               //std::cout << "module-id = " << (int)tmp.module_id << std::endl;
                if(got_header) {
-                  // when we meet a new module in the readout, we store any previously read data
-                  // for a previous module
-                  if(mod_data.module_id) {
-                     event.add_module_data(mod_data);
-                  }
+                  wait_for_ext_ts=false;//if a module header is seen at beginning of buffer, do not wait for ext-ts
+                  //if(printit) std::cout << " - to be read" << std::endl;
                   mod_data=std::move(tmp);
-                  got_tgv = (mesytec_setup.get_module(mod_data.module_id).firmware == TGV);
-                  if(got_tgv) {
-                     tgv_index=0;
+                  auto firmware = mesytec_setup.get_module(mod_data.module_id).firmware;
+                  //std::cout << "firmware = " << (int)firmware << std::endl;
+                  reading_mdpp = (firmware == SCP || firmware == QDC);
+                  reading_tgv = (firmware == TGV);
+                  reading_mvlc_scaler = (firmware == MVLC_SCALER);
+                  //if(reading_mdpp) {
+                     //std::cout << "reading mdpp !!!" << std::endl;
+                  //}
+                  if(reading_tgv) {
+                     mesytec_tgv_index=0;
+                     //std::cout << "reading tgv !!!" << std::endl;
                   }
-                  else
-                     got_mvlc_scaler = (mesytec_setup.get_module(mod_data.module_id).firmware == MVLC_SCALER);
+                  if(reading_mvlc_scaler) {
+                     mvlc_scaler_index=0;
+                     //std::cout << "reading scaler !!!" << std::endl;
+                  }
+               }
+               else
+               {
+                  // check for 'truncated event' i.e. start_event marker before finishing previous one
+                  if(mesytec_setup.readout.get_readout_state()==setup_readout::readout_state_t::start_event_found_in_readout_cycle)
+                  {
+                     treat_complete_event(F);
+                     mesytec_setup.readout.force_state_in_readout_cycle();
+                  }
                }
             }
-            else if(got_tgv && is_tgv_data(next_word)) {
-               // this can never happen: if we read TGV data we must have first read the TGV header!
-               if(!got_header) throw(std::runtime_error("Read TGV data without first reading header"));
-
-               //mod_data.add_data(next_word); do not store TGV data in event: the timestamp will be put in the MFMFrame header
-               tgv_data[tgv_index]=next_word;
-               ++tgv_index;
+            else if(!wait_for_ext_ts && reading_tgv) {
+               if(is_tgv_data(next_word))
+               {
+                  if(mesytec_tgv_index>3) std::cout << "***ERROR*** got too much TGV ***ERROR***" << std::endl;
+                  else
+                  {
+                     mesytec_tgv_data[mesytec_tgv_index]=next_word;
+                     //if(printit) std::cout << "  tgv data " << std::dec << mesytec_tgv_index << " = " << next_word << std::endl;
+                  }
+                  ++mesytec_tgv_index;
+               }
+               else if(is_end_of_event_tgv(next_word)){
+                  reading_tgv=false;
+                  //if(printit) std::cout << "  finished reading tgv" << std::endl;
+                  if(mesytec_tgv_index!=4)
+                  {
+                     std::cout << "***ERROR*** For TGV I read " << mesytec_tgv_index
+                               << " 16 bit words (should be 4):" << std::endl;
+                  }
+               }
             }
-            else if(got_mvlc_scaler)
+            else if(!wait_for_ext_ts && reading_mvlc_scaler)
             {
-               if(!is_end_of_event(next_word))
+               if(is_tgv_data(next_word))// scaler data is also only in the 16 low bits, nothing in the high bits
                {
                   // read data coming from MVLC counters
                   mod_data.add_data(next_word);
+                  //if(printit) std::cout << "  scaler data " << std::dec << mvlc_scaler_index << " = " << next_word << std::endl;
+                  ++mvlc_scaler_index;
                }
-               else
-                  got_mvlc_scaler=false;
+               else if(is_end_of_event_tgv(next_word)){ // same EOE as for TGV
+                  reading_mvlc_scaler=false;
+                  event.add_module_data(mod_data);
+                  //if(printit) std::cout << "  finished reading scaler" << std::endl;
+                  if(mvlc_scaler_index!=4)
+                  {
+                     std::cout << "***ERROR*** For MVLC scaler " <<
+                                  std::hex << std::showbase << (int)mod_data.module_id <<
+                                  " I read " << std::dec << mvlc_scaler_index
+                               << " 16 bit words (should be 4)" << std::endl;
+
+                     int buffer_start_offset = buf_pos - _buf;
+                     int start_frame = std::min(12,buffer_start_offset/4);
+                     for(int i=-start_frame;i<=0;++i)
+                     {
+                        auto wor = read_data_word(buf_pos+i*4);
+                        auto dec_word = decode_type(wor);
+                        std::cout << i << " :: " << std::hex << std::showbase << wor << " " << dec_word << std::dec << std::endl;
+                     }
+                  }
+               }
             }
-            else if(is_mdpp_data(next_word))
+            else if(reading_mdpp)
             {
-               // this can never happen: if we read data without first reading an events header,
-               // we don't know which module sent the data!
-               if(!got_header) throw(std::runtime_error("Read MDPP data without first reading header"));
-               mod_data.add_data(next_word);
+               if(is_mdpp_data(next_word))
+               {
+                  mod_data.add_data(next_word);
+                  //if(printit) std::cout << "  mdpp data = " << std::dec << next_word << std::endl;
+               }
+               else if(is_end_of_event(next_word))
+               {
+                  event.add_module_data(mod_data);
+                  //if(printit) std::cout << "  finished reading mdpp" << std::endl;
+                  reading_mdpp=false;
+               }
             }
 
             if(mesytec_setup.readout.readout_complete())
-            {
-               // the end of the readout of all modules is signalled by the END_READOUT dummy module
-
-               got_header=false;
-
-               // store any previously read data for a previous module
-               if(mod_data.module_id) {
-                  event.add_module_data(mod_data);
-               }
-
-               // check TGV data
-               if(!(tgv_data[0] & data_flags::tgv_data_ready_mask))
-               {
-                  std::cout << "*** WARNING *** Got BAD TIMESTAMP from TGV (TGV NOT READY) *** WARNING ***" << std::endl;
-                  event.tgv_ts_lo = 0;
-                  event.tgv_ts_mid = 0;
-                  event.tgv_ts_hi = 0;
-               }
-               else
-               {
-                  // get 3 centrum timestamp words from TGV data
-                  event.tgv_ts_lo = (tgv_data[1] &= data_flags::tgv_data_mask_lo);
-                  event.tgv_ts_mid = (tgv_data[2] &= data_flags::tgv_data_mask_lo);
-                  event.tgv_ts_hi = (tgv_data[3] &= data_flags::tgv_data_mask_lo);
-               }
-
-               // clear module data ready for next full readout
-               mod_data.clear();
-
-               got_tgv=false;
-               got_mvlc_scaler=false;
-
-               // in case callback function 'aborts' (output buffer full) and we have to keep the event for later
-               storing_last_complete_event=true;
-
-               // call callback function
-               F(event);
-               ++event.event_counter;
-
-               storing_last_complete_event=false;// successful callback
-
-               // reset event after sending/encapsulating
-               event.clear();
-
-               // begin new readout cycle
-               mesytec_setup.readout.begin_readout();
-
-               ++total_number_events_parsed;
-            }
+               treat_complete_event(F);
 
             // advance to next 32-bit word in buffer
             buf_pos+=4;
@@ -255,10 +427,39 @@ namespace mesytec
          buf_pos = const_cast<uint8_t*>(_buf);
          bytes_left_in_buffer = nbytes;
 
+         bool tgv = false;
+         int tgv_i=0;
+
+         bool merde=false;
+         int lines_to_print;
+
+
+         bool writing=true;
+
          while(bytes_left_in_buffer)
          {
+//            if((nbytes-bytes_left_in_buffer)==200)
+//            {
+//                  std::cout << "\n============================================================\n";
+//                  writing=false;
+//            }
+//            else if(bytes_left_in_buffer==200)
+//            {
+//               writing=true;
+//            }
+//            if(!writing)
+//            {
+//               buf_pos+=4;
+//               bytes_left_in_buffer-=4;
+//               continue;
+//            }
             auto next_word = read_data_word(buf_pos);
 
+//            if(merde)
+//            {
+//               --lines_to_print;
+//               if(!lines_to_print) throw(std::runtime_error("SHIIIIIIIIIIIIIIIITTTTT"));
+//            }
             if(is_frame_header(next_word)) {
                std::cout << decode_frame_header(next_word) << std::endl;
                if(is_system_unix_time(next_word))
@@ -276,7 +477,29 @@ namespace mesytec
             }
             //else if(!is_fill_word(next_word))
             {
-               std::cout << std::hex << std::showbase << next_word << " " << decode_type(next_word) << std::endl;
+               auto dec_word = decode_type(next_word);
+               //if(dec_word!="MDPP-DATA"
+                 //    && dec_word!="END-OF-EVENT")
+                  std::cout << std::hex << std::showbase << next_word << " " << dec_word << std::dec << std::endl;
+//               if(dec_word=="TGV")
+//               {
+//                  tgv=true;
+//                  tgv_i=0;
+//               }
+//               else if(tgv && is_tgv_data(next_word))
+//               {
+//                  ++tgv_i;
+//               }
+//               else if(tgv && dec_word=="END-OF-EVENT")
+//               {
+//                  if(tgv_i!=4){
+//                     std::cout << "Got " << tgv_i << " bits of timestamp" << std::endl;
+//                     merde=true;
+//                     lines_to_print=20;
+//                  }
+//                  tgv=false;
+//                  std::cout << "I READ " << tgv_i << " TGV DATA WORDS" << std::endl;
+//               }
             }
             buf_pos+=4;
             bytes_left_in_buffer-=4;
@@ -366,9 +589,9 @@ namespace mesytec
                // in principle maximum event size is 255 32-bit words i.e. 1 header + 254 following words
                if(mod_data.data_words>=254) std::cerr << "Header indicates " << mod_data.data_words << " words in this event..." << std::endl;
 
-               got_mvlc_scaler = current_module->firmware == MVLC_SCALER;
+               reading_mvlc_scaler = current_module->firmware == MVLC_SCALER;
             }
-            else if(got_mvlc_scaler)
+            else if(reading_mvlc_scaler)
             {
                mod_data.add_data(next_word);
             }

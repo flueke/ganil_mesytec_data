@@ -19,14 +19,15 @@ namespace mesytec
       std::set<uint8_t> set_of_modids;
       uint8_t event_start_marker;
       uint8_t event_end_marker;
+
+   public:
       enum class readout_state_t
       {
          waiting_for_event_start,
          in_event_readout,
-         finished_readout
+         finished_readout,
+         start_event_found_in_readout_cycle
       } readout_state;
-
-   public:
       /**
          @brief add a module to the setup
          @param id VME address of module (as it appears in data)
@@ -52,7 +53,9 @@ namespace mesytec
        */
       bool waiting_to_begin_cycle() const { return  readout_state == readout_state_t::waiting_for_event_start; }
       bool in_readout_cycle() const { return  readout_state == readout_state_t::in_event_readout; }
+      void force_state_in_readout_cycle() { readout_state = readout_state_t::in_event_readout; }
       bool readout_complete() const { return  readout_state == readout_state_t::finished_readout; }
+      readout_state_t get_readout_state() const { return readout_state; }
       bool is_next_module(uint8_t id)
       {
          // if we are not in a readout cycle, do nothing until start of event marker is found
@@ -66,6 +69,15 @@ namespace mesytec
          if(in_readout_cycle() && id==event_end_marker)
          {
             readout_state=readout_state_t::finished_readout;
+            return false;
+         }
+
+         // we may meet a start event marker before completing the previous event
+         // (truncated events?) in this case we need to store whatever we got from the
+         // previous event and start another one
+         if(in_readout_cycle() && id==event_start_marker)
+         {
+            readout_state=readout_state_t::start_event_found_in_readout_cycle;
             return false;
          }
 
