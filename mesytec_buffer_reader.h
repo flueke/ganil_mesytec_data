@@ -163,7 +163,7 @@ namespace mesytec
       }
 
       template<typename CallbackFunction>
-      uint32_t treat_complete_event(CallbackFunction F)
+      void treat_complete_event(CallbackFunction F)
    {
       // the end of the readout of all modules is signalled by the END_READOUT dummy module
 
