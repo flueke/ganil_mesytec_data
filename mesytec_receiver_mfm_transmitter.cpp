@@ -5,6 +5,7 @@
 #include <ctime>
 #include <thread>
 #include <chrono>
+#include "boost/program_options.hpp"
 
 unsigned char mfmevent[0x400000]; // 4 MB buffer
 zmq::context_t context(1);	// for ZeroMQ communications
@@ -12,11 +13,13 @@ zmq::context_t context(1);	// for ZeroMQ communications
 struct mesytec_mfm_converter
 {
    zmq::socket_t* pub;
-   std::string zmq_spy_port = "tcp://*:9097";
+   //std::string zmq_spy_port = "tcp://*:9097";
+   std::string zmq_spy_port = "tcp://*:";
    std::string spytype = "ZMQ_PUB";
 
-   mesytec_mfm_converter()
+   mesytec_mfm_converter(int port)
    {
+      zmq_spy_port = zmq_spy_port + std::to_string(port);
       try {
          pub=new zmq::socket_t(context, ZMQ_PUB);
          int linger = 0;
@@ -72,19 +75,62 @@ struct mesytec_mfm_converter
       ///////////////////MFM FRAME CONVERSION////////////////////////////////////
 
       // Now send frame on ZMQ socket
-//      memcpy((unsigned char*)output_buffer + *used_size_of_output_buffer,
-//             mfmevent, mfmeventsize);
       zmq::message_t msg(mfmeventsize);
       memcpy(msg.data(), mfmevent, mfmeventsize);
       pub->send(msg);
    }
 };
 
-int main()
+namespace po = boost::program_options;
+
+int main(int argc, char *argv[])
 {
-   std::string path_to_setup = "/shareacq/eindra/ganacq_manip/e818";
-   printf ("\n[MESYTEC] : ***process_config*** called\n");
-   std::string zmq_port = "tcp://mesytecPC:5575";
+   po::options_description desc("\nmesytec_receiver_mfm_transmitter\n\nUsage");
+
+   desc.add_options()
+         ("help", "produce this message")
+         ("config_dir", po::value<std::string>(),  "directory with crate_map.dat and detector_correspondence.dat files")
+         ("mvme_host", po::value<std::string>(), "url of host where mvme-zmq is runnning")
+         ("mvme_port", po::value<int>(), "[option] port number of mvme-zmq host (default: 5575)")
+         ("zmq_port", po::value<int>(), "[option] port on which to publish MFM data (default: 9097)");
+
+   po::variables_map vm;
+   try
+   {
+      po::store(po::parse_command_line(argc, argv, desc), vm);
+      po::notify(vm);
+   }
+   catch(...)
+   {
+      // in case of unknown options, print help & exit
+      std::cout << desc << "\n";
+      return 0;
+   }
+
+   if (vm.count("help")) {
+      std::cout << desc << "\n";
+      return 0;
+   }
+
+   if(!vm.count("config_dir")||!vm.count("mvme_host"))
+   {
+      std::cout << desc << "\n";
+      return 0;
+   }
+
+   //std::string path_to_setup = "/shareacq/eindra/ganacq_manip/e818";
+   std::string path_to_setup = vm["config_dir"].as<std::string>();
+
+   //std::string zmq_port = "tcp://mesytecPC:5575";
+   std::string zmq_port = "tcp://";
+   std::string path_to_host = vm["mvme_host"].as<std::string>();
+   int host_port = 5575;
+   if(vm.count("mvme_port")) host_port = vm["mvme_port"].as<int>();
+   zmq_port = zmq_port + path_to_host + ":" + std::to_string(host_port);
+
+   int spy_port = 9097;
+   if(vm.count("zmq_port")) spy_port = vm["zmq_port"].as<int>();
+
    printf ("[MESYTEC] : MESYTECSpy port = %s\n",zmq_port.c_str());
    printf ("[MESYTEC] :  - will read crate map in = %s/crate_map.dat\n", path_to_setup.c_str());
 
@@ -126,7 +172,7 @@ int main()
    uint32_t events_treated=0;
    zmq::message_t event;
 
-   mesytec_mfm_converter CONVERTER;
+   mesytec_mfm_converter CONVERTER(spy_port);
    const int status_update_interval=5; // print infos every x seconds
 
    /*** MAIN LOOP ***/
