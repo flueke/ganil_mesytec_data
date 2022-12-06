@@ -31,6 +31,9 @@ struct mesytec_mfm_converter
       }
 
    }
+
+   mesytec_mfm_converter(const mesytec_mfm_converter&) = default;
+
    void shutdown()
    {
       std::cout << "Shutting down transmitter" << std::endl;
@@ -72,8 +75,6 @@ struct mesytec_mfm_converter
       ///////////////////MFM FRAME CONVERSION////////////////////////////////////
 
       // Now send frame on ZMQ socket
-//      memcpy((unsigned char*)output_buffer + *used_size_of_output_buffer,
-//             mfmevent, mfmeventsize);
       zmq::message_t msg(mfmeventsize);
       memcpy(msg.data(), mfmevent, mfmeventsize);
       pub->send(msg);
