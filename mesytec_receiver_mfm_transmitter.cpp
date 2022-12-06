@@ -34,6 +34,9 @@ struct mesytec_mfm_converter
       }
 
    }
+
+   mesytec_mfm_converter(const mesytec_mfm_converter&) = default;
+
    void shutdown()
    {
       std::cout << "Shutting down transmitter" << std::endl;
