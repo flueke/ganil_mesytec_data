@@ -8,6 +8,7 @@
 #include <ostream>
 #include <cstring>
 #include <ctime>
+#include <array>
 
 namespace mesytec
 {
