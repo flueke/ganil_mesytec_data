@@ -4,7 +4,7 @@
 int main()
 {
    mesytec::experimental_setup mesytec_setup({
-                     {"CSI-01", 0x3, 32, mesytec::QDC}
+                     {"CSI-01", 0x3, 32, mesytec::MDPP_QDC}
    });
    mesytec_setup.set_detector_module_channel(0x3,0,"CSI_0601");
    mesytec_setup.set_detector_module_channel(0x3,1,"CSI_0602");
@@ -14,7 +14,7 @@ int main()
    mesytec_setup.set_detector_module_channel(0x3,5,"CSI_0606");
    mesytec_setup.print();
 
-   mesytec::mdpp::event event;
+   mesytec::event mesy_event;
    //   0x4002000b HEADER module 0x2
    //   0xf301003e EOE
    //   0x4003000b HEADER module 0x3
@@ -24,11 +24,11 @@ int main()
    //   0xf301003e EOE
    //   0xf520000c EOE
    //   0x4004000b HEAD
-   mesytec::mdpp::module_data mod_data{0x4003000b};
+   mesytec::module_data mod_data{0x4003000b};
    mod_data.add_data(0x10220c01);
    mod_data.add_data(0x10020134);
    mod_data.add_data(0x10620063);
-   event.add_module_data(mod_data);
+   mesy_event.add_module_data(mod_data);
 
-   event.ls(mesytec_setup);
+   mesy_event.ls(mesytec_setup);
 }

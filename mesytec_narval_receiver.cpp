@@ -213,7 +213,7 @@ void process_block (struct my_struct *,
    //std::cout << "[MESYTEC] : exiting receive-treat loop, " << MESYbuf->get_total_events_parsed() << " events were parsed\n";
 }
 
-void mesytec_mfm_converter::operator()(mesytec::mdpp::event &event)
+void mesytec_mfm_converter::operator()(mesytec::event &event)
 {
    // called for each complete event parsed from the mesytec stream
    //
@@ -234,7 +234,7 @@ void mesytec_mfm_converter::operator()(mesytec::mdpp::event &event)
    mfmevent[0] = 0xc1;  // little-endian, blob frame, unit block size 2 bytes (?)
    *((uint32_t*)(&mfmevent[1])) = (uint32_t)mfmeventsize/2;// frameSize in unit block size
    mfmevent[4] = 0x0;  // dataSource
-   *((uint16_t*)(&mfmevent[5])) = mesytec::mdpp::mfm_frame_type; // frame type
+   *((uint16_t*)(&mfmevent[5])) = mesytec::mfm_frame_type; // frame type
    mfmevent[7] = 0x1; // frame revision 1
 
    // next 6 bytes [8]-[13] are for the timestamp

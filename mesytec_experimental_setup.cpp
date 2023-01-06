@@ -28,9 +28,8 @@ namespace mesytec
       std::string name, firm;
       uint8_t modid, nchan;
       std::map<std::string,mesytec::firmware_t> firmwares;
-      firmwares["SCP"] = mesytec::SCP;
-      firmwares["QDC"] = mesytec::QDC;
-      firmwares["CSI"] = mesytec::CSI;
+      firmwares["SCP"] = mesytec::MDPP_SCP;
+      firmwares["QDC"] = mesytec::MDPP_QDC;
       firmwares["TGV"] = mesytec::TGV;
       firmwares["START_READOUT"] = mesytec::START_READOUT;
       firmwares["END_READOUT"] = mesytec::END_READOUT;

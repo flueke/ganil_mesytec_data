@@ -44,7 +44,7 @@ struct mesytec_mfm_converter
       delete pub;
    }
 
-   void operator()(mesytec::mdpp::event &event)
+   void operator()(mesytec::event &mesy_event)
    {
       // called for each complete event parsed from the mesytec stream
       //
@@ -53,28 +53,28 @@ struct mesytec_mfm_converter
       // the next time that process_block is called
 
       // 24 bytes for MFM header, plus the Mesytec data buffer
-      size_t mfmeventsize = 24 + event.size_of_buffer()*4;
+      size_t mfmeventsize = 24 + mesy_event.size_of_buffer()*4;
 
       ///////////////////MFM FRAME CONVERSION////////////////////////////////////
       mfmevent[0] = 0xc1;  // little-endian, blob frame, unit block size 2 bytes (?)
       *((uint32_t*)(&mfmevent[1])) = (uint32_t)mfmeventsize/2;// frameSize in unit block size
       mfmevent[4] = 0x0;  // dataSource
-      *((uint16_t*)(&mfmevent[5])) = mesytec::mdpp::mfm_frame_type; // frame type
+      *((uint16_t*)(&mfmevent[5])) = mesytec::mfm_frame_type; // frame type
       mfmevent[7] = 0x1; // frame revision 1
 
       // next 6 bytes [8]-[13] are for the timestamp
-      *((uint16_t*)(&mfmevent[8])) = event.tgv_ts_lo;
-      *((uint16_t*)(&mfmevent[10])) = event.tgv_ts_mid;
-      *((uint16_t*)(&mfmevent[12])) = event.tgv_ts_hi;
+      *((uint16_t*)(&mfmevent[8])) = mesy_event.tgv_ts_lo;
+      *((uint16_t*)(&mfmevent[10])) = mesy_event.tgv_ts_mid;
+      *((uint16_t*)(&mfmevent[12])) = mesy_event.tgv_ts_hi;
       //printf("mfmframe: ts_lo %#06x  ts_mid %#06x  ts_hi %#06x\n",*((uint16_t*)(&mfmevent[8])),*((uint16_t*)(&mfmevent[10])),*((uint16_t*)(&mfmevent[12])));
 
       // bytes [14]-[17]: event number (event counter from mesytec EOE)
-      *((uint32_t*)(&mfmevent[14])) = event.event_counter;
+      *((uint32_t*)(&mfmevent[14])) = mesy_event.event_counter;
       // bytes [20]-[23] number of bytes in mesytec data blob
-      *((uint32_t*)(&mfmevent[20])) = (uint32_t)event.size_of_buffer()*4;
+      *((uint32_t*)(&mfmevent[20])) = (uint32_t)mesy_event.size_of_buffer()*4;
 
       // copy mesytec data into mfm frame 'blob'
-      memcpy(mfmevent+24, event.get_output_buffer().data(), mfmeventsize-24);
+      memcpy(mfmevent+24, mesy_event.get_output_buffer().data(), mfmeventsize-24);
       ///////////////////MFM FRAME CONVERSION////////////////////////////////////
 
       // Now send frame on ZMQ socket

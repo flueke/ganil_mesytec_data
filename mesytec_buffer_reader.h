@@ -15,8 +15,8 @@ namespace mesytec
    class buffer_reader
    {
       experimental_setup mesytec_setup;
-      mdpp::event event;
-      mdpp::module_data mod_data;
+      event mesy_event;
+      module_data mod_data;
       bool got_header=false;
       bool reading_data=false;
       bool storing_last_complete_event=false;
@@ -46,7 +46,7 @@ namespace mesytec
       void reset()
       {
          // reset buffer reader to initial state, before reading any buffers
-         event.clear();
+         mesy_event.clear();
          mod_data.clear();
          got_header=false;
          reading_data=false;
@@ -172,9 +172,9 @@ namespace mesytec
       //if(printit) std::cout << "readout complete" << std::endl;
 
       // check TGV data
-      event.tgv_ts_lo = 0;
-      event.tgv_ts_mid = 0;
-      event.tgv_ts_hi = 0;
+      mesy_event.tgv_ts_lo = 0;
+      mesy_event.tgv_ts_mid = 0;
+      mesy_event.tgv_ts_hi = 0;
       //std::cout << "tgv = " << mesytec_tgv_index << " scaler = " << mvlc_scaler_index << std::endl;
       if(mesytec_tgv_index==4){
          if(!(mesytec_tgv_data[0] & data_flags::tgv_data_ready_mask))
@@ -187,9 +187,9 @@ namespace mesytec
          {
             //if(printit) std::cout << "TGV data is OK" << std::endl;
             // get 3 centrum timestamp words from TGV data
-            event.tgv_ts_lo = (mesytec_tgv_data[1] &= data_flags::tgv_data_mask_lo);
-            event.tgv_ts_mid = (mesytec_tgv_data[2] &= data_flags::tgv_data_mask_lo);
-            event.tgv_ts_hi = (mesytec_tgv_data[3] &= data_flags::tgv_data_mask_lo);
+            mesy_event.tgv_ts_lo = (mesytec_tgv_data[1] &= data_flags::tgv_data_mask_lo);
+            mesy_event.tgv_ts_mid = (mesytec_tgv_data[2] &= data_flags::tgv_data_mask_lo);
+            mesy_event.tgv_ts_hi = (mesytec_tgv_data[3] &= data_flags::tgv_data_mask_lo);
             //std::cout << event.tgv_ts_hi << " " << event.tgv_ts_mid << " " << event.tgv_ts_lo << std::endl;
          }
       }
@@ -209,13 +209,13 @@ namespace mesytec
 //                  event.ls(mesytec_setup);
 //               }
       // call callback function
-      F(event);
-      ++event.event_counter;
+      F(mesy_event);
+      ++mesy_event.event_counter;
 
       storing_last_complete_event=false;// successful callback
 
       // reset event after sending/encapsulating
-      event.clear();
+      mesy_event.clear();
 
       // begin new readout cycle
       mesytec_setup.readout.begin_readout();
@@ -245,7 +245,7 @@ namespace mesytec
 
 
          assert(nbytes%4==0); // the buffer should only contain 32-bit words
-         //dump_data_stream(_buf,nbytes);
+         dump_data_stream(_buf,nbytes);
 
          buf_pos = const_cast<uint8_t*>(_buf);
          bytes_left_in_buffer = nbytes;
@@ -305,7 +305,7 @@ namespace mesytec
 //                  auto dec_word = decode_type(next_word);
 //                  std::cout << std::hex << std::showbase << next_word << " " << dec_word << std::dec << std::endl;
 //               }
-               mdpp::module_data tmp{next_word};
+               module_data tmp{next_word};
                // check readout sequence
                got_header = mesytec_setup.readout.is_next_module(tmp.module_id);
                //std::cout << "module-id = " << (int)tmp.module_id << std::endl;
@@ -315,7 +315,7 @@ namespace mesytec
                   mod_data=std::move(tmp);
                   auto firmware = mesytec_setup.get_module(mod_data.module_id).firmware;
                   //std::cout << "firmware = " << (int)firmware << std::endl;
-                  reading_mdpp = (firmware == SCP || firmware == QDC);
+                  reading_mdpp = (firmware == MDPP_SCP || firmware == MDPP_QDC);
                   reading_tgv = (firmware == TGV);
                   reading_mvlc_scaler = (firmware == MVLC_SCALER);
                   //if(reading_mdpp) {
@@ -372,7 +372,7 @@ namespace mesytec
                }
                else if(is_end_of_event_tgv(next_word)){ // same EOE as for TGV
                   reading_mvlc_scaler=false;
-                  event.add_module_data(mod_data);
+                  mesy_event.add_module_data(mod_data);
                   //if(printit) std::cout << "  finished reading scaler" << std::endl;
                   if(mvlc_scaler_index!=4)
                   {
@@ -401,7 +401,7 @@ namespace mesytec
                }
                else if(is_end_of_event(next_word))
                {
-                  event.add_module_data(mod_data);
+                  mesy_event.add_module_data(mod_data);
                   //if(printit) std::cout << "  finished reading mdpp" << std::endl;
                   reading_mdpp=false;
                }
@@ -571,7 +571,7 @@ namespace mesytec
 
          int words_to_read = nbytes/4;
          buf_pos = const_cast<uint8_t*>(_buf);
-         mdpp::event event;
+         event mesy_event;
          mod_data.clear();
          module *current_module;
 
@@ -582,10 +582,10 @@ namespace mesytec
             if(is_event_header(next_word))
             {
                // add previously read module to event
-               if(mod_data.module_id) event.add_module_data(mod_data);
+               if(mod_data.module_id) mesy_event.add_module_data(mod_data);
 
                // new module
-               mod_data = mdpp::module_data{next_word};
+               mod_data = module_data{next_word};
                current_module = &mesytec_setup.get_module(mod_data.module_id);
                // in principle maximum event size is 255 32-bit words i.e. 1 header + 254 following words
                if(mod_data.data_words>=254) std::cerr << "Header indicates " << mod_data.data_words << " words in this event..." << std::endl;
@@ -604,10 +604,10 @@ namespace mesytec
             buf_pos+=4;
          }
          // add last read module to event
-         if(mod_data.module_id) event.add_module_data(mod_data);
+         if(mod_data.module_id) mesy_event.add_module_data(mod_data);
 
          // read all data - call function
-         F(event);
+         F(mesy_event);
       }
       template<typename CallbackFunction>
       void read_event_in_buffer_v0(const uint8_t* _buf, size_t nbytes, CallbackFunction F)
@@ -632,14 +632,14 @@ namespace mesytec
 
          int words_to_read = nbytes/4;
          buf_pos = const_cast<uint8_t*>(_buf);
-         mdpp::event event;
+         event mesy_event;
 
          while(words_to_read--)
          {
             auto next_word = read_data_word(buf_pos);
             if(is_event_header(next_word))
             {
-               mod_data = mdpp::module_data{next_word};
+               mod_data = module_data{next_word};
                // in principle maximum event size is 255 32-bit words i.e. 1 header + 254 following words
                if(mod_data.data_words>=254) std::cerr << "Header indicates " << mod_data.data_words << " words in this event..." << std::endl;
                got_header = true;
@@ -661,13 +661,13 @@ namespace mesytec
                reading_data=false;
                mod_data.event_counter = event_counter(next_word);
                mod_data.eoe_word = next_word;
-               event.event_counter = mod_data.event_counter;
-               event.add_module_data(mod_data);
+               mesy_event.event_counter = mod_data.event_counter;
+               mesy_event.add_module_data(mod_data);
             }
             buf_pos+=4;
          }
          // read all data - call function
-         F(event);
+         F(mesy_event);
       }
       uint32_t get_total_events_parsed() const { return total_number_events_parsed; }
       bool is_storing_last_complete_event() const { return storing_last_complete_event; }
@@ -675,9 +675,9 @@ namespace mesytec
       void cleanup_last_complete_event(CallbackFunction F)
       {
          // call user function for event saved from last time
-         F(event);
+         F(mesy_event);
          // reset event
-         event.clear();
+         mesy_event.clear();
          storing_last_complete_event=false;
          // begin new readout cycle
          mesytec_setup.readout.begin_readout();

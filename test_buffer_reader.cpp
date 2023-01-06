@@ -43,7 +43,7 @@ int main()
 #endif
       {
          MESYbuf.read_buffer_collate_events( (const uint8_t*)event.data(), event.size(),
-                                             [=](mesytec::mdpp::event& Event){ Event.ls(mesytec_setup); });
+                                             [=](mesytec::event& Event){ Event.ls(mesytec_setup); });
       }
    }
 }

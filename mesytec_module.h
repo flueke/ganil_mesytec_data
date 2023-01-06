@@ -261,9 +261,8 @@ namespace mesytec
 
    enum firmware_t
    {
-      SCP,
-      QDC,
-      CSI,
+      MDPP_SCP,
+      MDPP_QDC,
       TGV,
       START_READOUT,
       END_READOUT,
@@ -345,7 +344,7 @@ namespace mesytec
          switch(channel_flags())
          {
          case 0:
-            return firmware==QDC ? data_type_aliases["qdc_long"] : data_type_aliases["adc"];
+            return firmware==MDPP_QDC ? data_type_aliases["qdc_long"] : data_type_aliases["adc"];
          case 1:
             return data_type_aliases["tdc"];
          case 2:
@@ -361,7 +360,7 @@ namespace mesytec
       /// Get name of detector associated with channel number
       std::string operator[](uint8_t nchan){ return channel_map[nchan]; }
 
-      bool is_mdpp_module() const { return (firmware==QDC) || (firmware==SCP); }
+      bool is_mdpp_module() const { return (firmware==MDPP_QDC) || (firmware==MDPP_SCP); }
       bool is_mvlc_scaler() const { return firmware==MVLC_SCALER; }
    };
 

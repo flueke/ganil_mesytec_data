@@ -45,7 +45,7 @@ int main(int argc, char* argv[])
       {
          in_a_buffer=false;
          std::cout << "got buffer of " << std::dec << buf_size << " bytes" << std::endl;
-         MESYbuf.read_buffer_collate_events(buffer.data(),1000000,[&mesytec_setup](mesytec::mdpp::event& Event){ /*Event.ls(mesytec_setup);*/ });
+         MESYbuf.read_buffer_collate_events(buffer.data(),1000000,[&mesytec_setup](mesytec::event& Event){ /*Event.ls(mesytec_setup);*/ });
       }
       if(in_a_buffer)
       {

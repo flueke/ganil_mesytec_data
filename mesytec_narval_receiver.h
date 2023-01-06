@@ -30,7 +30,7 @@ struct mesytec_mfm_converter
    void *output_buffer;
    unsigned int size_of_output_buffer;
    unsigned int *used_size_of_output_buffer;
-   void operator()(mesytec::mdpp::event&);
+   void operator()(mesytec::event&);
 };
 
 /* you must have the following symbols */
