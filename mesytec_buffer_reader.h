@@ -27,6 +27,7 @@ namespace mesytec
       bool reading_tgv{false};
       bool reading_mvlc_scaler{false};
       bool reading_mdpp{false};
+      bool reading_vmmr{false};
       static const size_t last_buf_store_size=200;// 4 * nwords
       std::array<uint8_t,last_buf_store_size> store_end_of_last_buffer;
       std::array<uint32_t,4> mesytec_tgv_data;
@@ -58,6 +59,7 @@ namespace mesytec
          reading_tgv=false;
          reading_mvlc_scaler=false;
          reading_mdpp=false;
+         reading_vmmr=false;
          mesytec_setup.readout.begin_readout();
          mesytec_tgv_index=0;
          last_timestamp=0;
@@ -200,6 +202,7 @@ namespace mesytec
       reading_tgv=false;
       reading_mvlc_scaler=false;
       reading_mdpp=false;
+      reading_vmmr=false;
 
       // in case callback function 'aborts' (output buffer full) and we have to keep the event for later
       storing_last_complete_event=true;
@@ -245,7 +248,7 @@ namespace mesytec
 
 
          assert(nbytes%4==0); // the buffer should only contain 32-bit words
-         dump_data_stream(_buf,nbytes);
+         //dump_data_stream(_buf,nbytes);
 
          buf_pos = const_cast<uint8_t*>(_buf);
          bytes_left_in_buffer = nbytes;
@@ -258,10 +261,10 @@ namespace mesytec
          bool seen_ext_ts=false;
 
 //         int nwordsread=0;
-         //bool printit=true;
-//         std::cout << "=============================================================================" << std::endl;
-//         std::cout << "       *************         READING NEW BUFFER         *************        " << std::endl;
-//         std::cout << "=============================================================================" << std::endl;
+         bool printit=false;
+//        std::cout << "=============================================================================" << std::endl;
+//        std::cout << "       *************         READING NEW BUFFER         *************        " << std::endl;
+//        std::cout << "=============================================================================" << std::endl;
 
          while(bytes_left_in_buffer)
          {
@@ -316,8 +319,12 @@ namespace mesytec
                   auto firmware = mesytec_setup.get_module(mod_data.module_id).firmware;
                   //std::cout << "firmware = " << (int)firmware << std::endl;
                   reading_mdpp = (firmware == MDPP_SCP || firmware == MDPP_QDC);
+                  reading_vmmr = (firmware == MMR);
                   reading_tgv = (firmware == TGV);
                   reading_mvlc_scaler = (firmware == MVLC_SCALER);
+//                  if(reading_vmmr) {
+//                     std::cout << "reading vmmr !!!" << std::endl;
+//                  }
                   //if(reading_mdpp) {
                      //std::cout << "reading mdpp !!!" << std::endl;
                   //}
@@ -404,6 +411,21 @@ namespace mesytec
                   mesy_event.add_module_data(mod_data);
                   //if(printit) std::cout << "  finished reading mdpp" << std::endl;
                   reading_mdpp=false;
+               }
+            }
+            else if(reading_vmmr)
+            {
+               if(is_vmmr_data(next_word))
+               {
+                  mod_data.add_data(next_word);
+//                  if(printit) std::cout << "  vmmr data = " << std::dec << next_word << std::endl;
+               }
+               else if(is_end_of_event(next_word))
+               {
+                  //mod_data.ls(mesytec_setup);
+                  mesy_event.add_module_data(mod_data);
+                  if(printit) std::cout << "  finished reading vmmr" << std::endl;
+                  reading_vmmr=false;
                }
             }
 
@@ -587,8 +609,9 @@ namespace mesytec
                // new module
                mod_data = module_data{next_word};
                current_module = &mesytec_setup.get_module(mod_data.module_id);
+               // THIS CONCERNS ONLY MDPP (?) AND NOT VMMR
                // in principle maximum event size is 255 32-bit words i.e. 1 header + 254 following words
-               if(mod_data.data_words>=254) std::cerr << "Header indicates " << mod_data.data_words << " words in this event..." << std::endl;
+               //if(mod_data.data_words>=254) std::cerr << "Header indicates " << mod_data.data_words << " words in this event..." << std::endl;
 
                reading_mvlc_scaler = current_module->firmware == MVLC_SCALER;
             }

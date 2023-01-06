@@ -56,6 +56,21 @@ bool mesytec::is_mdpp_data(uint32_t DATA)
    return ((DATA & data_flags::mdpp_data_mask) == data_flags::mdpp_data);
 }
 
+bool mesytec::is_vmmr_data(uint32_t DATA)
+{
+   return is_vmmr_adc_data(DATA) || is_vmmr_tdc_data(DATA);
+}
+
+bool mesytec::is_vmmr_adc_data(uint32_t DATA)
+{
+   return ((DATA & data_flags::vmmr_data_mask) == data_flags::vmmr_data_adc);
+}
+
+bool mesytec::is_vmmr_tdc_data(uint32_t DATA)
+{
+   return ((DATA & data_flags::vmmr_data_mask) == data_flags::vmmr_data_tdc);
+}
+
 bool mesytec::is_fill_word(uint32_t DATA)
 {
    return DATA == data_flags::fill_word_found;
@@ -79,8 +94,8 @@ std::string mesytec::decode_type(uint32_t DATA)
       return decode_frame_header(DATA);
    else if(is_event_header(DATA))
    {
-      if(module_id(DATA)==0x1) ss << "TGV";
-      else
+//      if(module_id(DATA)==0x1) ss << "TGV";
+//      else
          ss << "EVENT-HEADER: Module-ID=" << std::hex << std::showbase << (int)module_id(DATA);
       return ss.str();
    }

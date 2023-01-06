@@ -257,12 +257,23 @@ namespace mesytec
       const uint32_t extended_ts = 0x20000000;
       const uint32_t exts_friend_mask = 0xFFFF0000;
       const uint32_t exts_friend = 0x10000;
+      const uint32_t vmmr_data_mask = 0xF0000000;
+      const uint32_t vmmr_data_adc = 0x10000000;
+      const uint32_t vmmr_data_tdc = 0x30000000;
+      const uint32_t vmmr_bus_mask = 0x0f000000;
+      const uint32_t vmmr_bus_div = 0x01000000;
+      const uint32_t vmmr_channel_mask = 0x00fff000;
+      const uint32_t vmmr_channel_div = 0x00001000;
+      const uint32_t vmmr_adc_mask = 0x00000fff;
+      const uint32_t vmmr_tdc_mask = 0x0000ffff;
    };
 
    enum firmware_t
    {
       MDPP_SCP,
       MDPP_QDC,
+      MDPP_CSI,
+      MMR,
       TGV,
       START_READOUT,
       END_READOUT,
@@ -275,6 +286,9 @@ namespace mesytec
          : std::runtime_error(what)
       {}
    };
+
+   bool is_vmmr_tdc_data(uint32_t DATA);
+   bool is_vmmr_adc_data(uint32_t DATA);
 
    struct module
    {
@@ -314,11 +328,25 @@ namespace mesytec
       void set_data_word(uint32_t data){ DATA = data; }
       uint8_t channel_number() const
       {
+          if(firmware==MMR)
+          {
+              if(is_vmmr_adc_data(DATA)) return (DATA & data_flags::vmmr_channel_mask) / data_flags::vmmr_channel_div;
+              return 0;
+          }
           return (DATA & channel_mask) / data_flags::channel_div;
+      }
+      uint8_t bus_number() const
+      {
+          return (DATA & data_flags::vmmr_bus_mask) / data_flags::vmmr_bus_div;
       }
 
       unsigned int channel_data() const
       {
+          if(firmware==MMR)
+          {
+              if(is_vmmr_adc_data(DATA)) return (DATA & data_flags::vmmr_adc_mask);
+              if(is_vmmr_tdc_data(DATA)) return (DATA & data_flags::vmmr_tdc_mask);
+          }
           return (DATA & data_flags::data_mask);
       }
       uint8_t channel_flags() const
@@ -331,8 +359,18 @@ namespace mesytec
       }
       void print_mdpp_data() const
       {
-          printf("== MDPP-DATA :: %s [%#04x]  chan_number = %02d    %s = %5d\n",
-                     name.c_str(), id, channel_number(), data_type().c_str(), channel_data());
+          if(firmware == MMR)
+          {
+//              printf("== VMMR-DATA ::  %s [%#04x]  bus_number = %02d   chan_number = %02d    %s = %5d\n",
+//                         name.c_str(), id, bus_number(), channel_number(), data_type().c_str(), channel_data());
+//              if(data_type()=="TDC") printf("TDC: %02d %5d\n",
+//                        bus_number(), channel_data());
+              if(data_type()=="ADC") printf("%02d %02d %5d\n",
+                        bus_number(), channel_number(), channel_data());
+          }
+//          else
+//          printf("== MDPP-DATA :: %s [%#04x]  chan_number = %02d    %s = %5d\n",
+//                     name.c_str(), id, channel_number(), data_type().c_str(), channel_data());
       }
       std::string data_type() const
       {
@@ -341,7 +379,12 @@ namespace mesytec
          // =3 : data is QDC_short
          // =2 : data is trigger time
 
-         switch(channel_flags())
+          if(firmware==MMR)
+          {
+              if(is_vmmr_adc_data(DATA)) return "ADC";
+              else return "TDC";
+          }
+          switch(channel_flags())
          {
          case 0:
             return firmware==MDPP_QDC ? data_type_aliases["qdc_long"] : data_type_aliases["adc"];
@@ -361,6 +404,7 @@ namespace mesytec
       std::string operator[](uint8_t nchan){ return channel_map[nchan]; }
 
       bool is_mdpp_module() const { return (firmware==MDPP_QDC) || (firmware==MDPP_SCP); }
+      bool is_vmmr_module() const { return (firmware==MMR); }
       bool is_mvlc_scaler() const { return firmware==MVLC_SCALER; }
    };
 
@@ -371,6 +415,7 @@ namespace mesytec
    bool is_end_of_event(uint32_t DATA);
    bool is_end_of_event_tgv(uint32_t DATA);
    bool is_mdpp_data(uint32_t DATA);
+   bool is_vmmr_data(uint32_t DATA);
    bool is_tgv_data(uint32_t DATA);
    bool is_fill_word(uint32_t DATA);
    bool is_extended_ts(uint32_t DATA);

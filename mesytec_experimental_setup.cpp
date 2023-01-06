@@ -30,6 +30,8 @@ namespace mesytec
       std::map<std::string,mesytec::firmware_t> firmwares;
       firmwares["SCP"] = mesytec::MDPP_SCP;
       firmwares["QDC"] = mesytec::MDPP_QDC;
+      firmwares["MMR"] = mesytec::MMR;
+      firmwares["CSI"] = mesytec::CSI;
       firmwares["TGV"] = mesytec::TGV;
       firmwares["START_READOUT"] = mesytec::START_READOUT;
       firmwares["END_READOUT"] = mesytec::END_READOUT;
