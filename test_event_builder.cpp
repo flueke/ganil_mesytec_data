@@ -24,7 +24,8 @@ int main()
    //   0xf301003e EOE
    //   0xf520000c EOE
    //   0x4004000b HEAD
-   mesytec::module_data mod_data{0x4003000b};
+   mesytec::module_data mod_data;
+   mod_data.set_header_word(0x4003000b, mesytec::MDPP_QDC);
    mod_data.add_data(0x10220c01);
    mod_data.add_data(0x10020134);
    mod_data.add_data(0x10620063);
