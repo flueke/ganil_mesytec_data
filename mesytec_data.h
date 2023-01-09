@@ -59,7 +59,7 @@ namespace mesytec
          uint32_t event_counter : 30;
          uint32_t header_word;
          uint32_t eoe_word;
-         uint16_t data_words : 10; // number of data items + 1 EOE
+         uint16_t data_words : 12; // number of data items + 1 EOE
          uint8_t module_id{0};
 
          void clear()
@@ -72,11 +72,32 @@ namespace mesytec
             eoe_word=0;
          }
 
-         module_data(uint32_t _header_word)
-            : header_word{_header_word}, data_words{length_of_data(_header_word)},
-              module_id{mesytec::module_id(_header_word)}
+         void set_header_word(uint32_t _header_word, firmware_t firmware)
          {
-            data.reserve(data_words); // max number of data words for 1 module
+            clear();
+            header_word=_header_word;
+            module_id = mesytec::module_id(_header_word);
+            switch(firmware)
+            {
+            case MDPP_QDC:
+            case MDPP_SCP:
+            case MDPP_CSI:
+               data_words = length_of_data_mdpp(_header_word);
+               break;
+
+            case MMR:
+               data_words = length_of_data_vmmr(_header_word);
+               break;
+
+            case TGV:
+            case MVLC_SCALER:
+               data_words = 4;
+               break;
+
+            default:
+               data_words = 0;
+            }
+            if(data_words) data.reserve(data_words); // max number of data words for 1 module
          }
          module_data()=default;
          ~module_data()=default;

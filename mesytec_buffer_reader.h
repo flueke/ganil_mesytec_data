@@ -234,11 +234,11 @@ namespace mesytec
          //
          // Read nbytes bytes from the buffer [must be a multiple of 4, i.e. only 4-byte words]
          //
-         // Decode Mesytec MDPP data in the buffer, collate all module data.
+         // Decode Mesytec data in the buffer, collate all module data.
          // When a complete event is ready the callback function is called with the event as
          // argument. Suitable signature for callback could be
          //
-         //    void callback((mesytec::mdpp::event& Event);
+         //    void callback((mesytec::event& Event);
          //
          // Straight after the call, the event will be deleted, so don't bother keeping a copy of a
          // reference to it, any data must be copied/moved in the callback function.
@@ -304,21 +304,16 @@ namespace mesytec
             }
             if(is_event_header(next_word))
             {
-//               if(printit){
-//                  auto dec_word = decode_type(next_word);
-//                  std::cout << std::hex << std::showbase << next_word << " " << dec_word << std::dec << std::endl;
-//               }
-               module_data tmp{next_word};
                // check readout sequence
-               got_header = mesytec_setup.readout.is_next_module(tmp.module_id);
+               got_header = mesytec_setup.readout.is_next_module(module_id(next_word));
                //std::cout << "module-id = " << (int)tmp.module_id << std::endl;
                if(got_header) {
                   wait_for_ext_ts=false;//if a module header is seen at beginning of buffer, do not wait for ext-ts
                   //if(printit) std::cout << " - to be read" << std::endl;
-                  mod_data=std::move(tmp);
-                  auto firmware = mesytec_setup.get_module(mod_data.module_id).firmware;
+                  auto firmware = mesytec_setup.get_module(module_id(next_word)).firmware;
+                  mod_data.set_header_word(next_word,firmware);
                   //std::cout << "firmware = " << (int)firmware << std::endl;
-                  reading_mdpp = (firmware == MDPP_SCP || firmware == MDPP_QDC);
+                  reading_mdpp = (firmware == MDPP_SCP || firmware == MDPP_QDC || firmware == MDPP_CSI);
                   reading_vmmr = (firmware == MMR);
                   reading_tgv = (firmware == TGV);
                   reading_mvlc_scaler = (firmware == MVLC_SCALER);

@@ -228,7 +228,7 @@ namespace mesytec
    {
       const uint32_t header_found_mask = 0xF0000000;
       const uint32_t header_found = 0x40000000;
-      const uint32_t data_length_mask = 0x000003FF;
+      const uint32_t mdpp_data_length_mask = 0x000003FF;
       const uint32_t module_setng_mask = 0x0000FC00;
       const uint32_t module_setng_div = 0x400;
       const uint32_t module_id_mask = 0x00FF0000;
@@ -258,6 +258,7 @@ namespace mesytec
       const uint32_t exts_friend_mask = 0xFFFF0000;
       const uint32_t exts_friend = 0x10000;
       const uint32_t vmmr_data_mask = 0xF0000000;
+      const uint32_t vmmr_data_length_mask = 0x00000FFF;
       const uint32_t vmmr_data_adc = 0x10000000;
       const uint32_t vmmr_data_tdc = 0x30000000;
       const uint32_t vmmr_bus_mask = 0x0f000000;
@@ -422,7 +423,8 @@ namespace mesytec
    bool is_exts_friend(uint32_t DATA);
    void print_type(uint32_t DATA);
    std::string decode_type(uint32_t DATA);
-   uint16_t length_of_data(uint32_t DATA);
+   uint16_t length_of_data_mdpp(uint32_t DATA);
+   uint16_t length_of_data_vmmr(uint32_t DATA);
    uint8_t module_id(uint32_t DATA);
    unsigned int module_setting(uint32_t DATA);
    void print_header(uint32_t DATA);

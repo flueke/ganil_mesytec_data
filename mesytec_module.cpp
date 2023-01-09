@@ -105,6 +105,8 @@ std::string mesytec::decode_type(uint32_t DATA)
       return "FILL-WORD";
    else if(is_mdpp_data(DATA))
       return "MDPP-DATA";
+   else if(is_vmmr_data(DATA))
+      return "VMMR-DATA";
    else if(is_extended_ts(DATA))
       return "EXT-TS";
    else if(is_exts_friend(DATA))
@@ -118,9 +120,14 @@ void mesytec::print_type(uint32_t DATA)
    std::cout << decode_type(DATA);
 }
 
-uint16_t mesytec::length_of_data(uint32_t DATA)
+uint16_t mesytec::length_of_data_mdpp(uint32_t DATA)
 {
-   return (DATA & data_flags::data_length_mask);
+   return (DATA & data_flags::mdpp_data_length_mask);
+}
+
+uint16_t mesytec::length_of_data_vmmr(uint32_t DATA)
+{
+   return (DATA & data_flags::vmmr_data_length_mask);
 }
 
 uint8_t mesytec::module_id(uint32_t DATA)
@@ -135,7 +142,7 @@ unsigned int mesytec::module_setting(uint32_t DATA)
 
 void mesytec::print_header(uint32_t DATA)
 {
-   printf("== header_found ==\n data_length = %d words\n", length_of_data(DATA));
+   printf("== header_found ==\n data_length = %d words (MDPP) / %d words (VMMR)\n", length_of_data_mdpp(DATA), length_of_data_vmmr(DATA));
    printf(" module_id = %#2x  module_setting = %#2x\n", module_id(DATA), module_setting(DATA));
 }
 
