@@ -602,11 +602,9 @@ namespace mesytec
                if(mod_data.module_id) mesy_event.add_module_data(mod_data);
 
                // new module
-               mod_data = module_data{next_word};
-               current_module = &mesytec_setup.get_module(mod_data.module_id);
-               // THIS CONCERNS ONLY MDPP (?) AND NOT VMMR
-               // in principle maximum event size is 255 32-bit words i.e. 1 header + 254 following words
-               //if(mod_data.data_words>=254) std::cerr << "Header indicates " << mod_data.data_words << " words in this event..." << std::endl;
+               current_module = &mesytec_setup.get_module(module_id(next_word));
+               auto firmware = current_module->firmware;
+               mod_data.set_header_word(next_word,firmware);
 
                reading_mvlc_scaler = current_module->firmware == MVLC_SCALER;
             }
@@ -657,9 +655,8 @@ namespace mesytec
             auto next_word = read_data_word(buf_pos);
             if(is_event_header(next_word))
             {
-               mod_data = module_data{next_word};
-               // in principle maximum event size is 255 32-bit words i.e. 1 header + 254 following words
-               if(mod_data.data_words>=254) std::cerr << "Header indicates " << mod_data.data_words << " words in this event..." << std::endl;
+               auto firmware = mesytec_setup.get_module(module_id(next_word)).firmware;
+               mod_data.set_header_word(next_word,firmware);
                got_header = true;
                reading_data = false;
             }
