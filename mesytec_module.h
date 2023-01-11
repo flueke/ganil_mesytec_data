@@ -329,6 +329,7 @@ namespace mesytec
       void set_data_word(uint32_t data){ DATA = data; }
       uint8_t channel_number() const
       {
+         // Channel number (for MDPP) or bus subaddress (for VMMR)
           if(firmware==MMR)
           {
               if(is_vmmr_adc_data(DATA)) return (DATA & data_flags::vmmr_channel_mask) / data_flags::vmmr_channel_div;
@@ -338,7 +339,10 @@ namespace mesytec
       }
       uint8_t bus_number() const
       {
-          return (DATA & data_flags::vmmr_bus_mask) / data_flags::vmmr_bus_div;
+         // Bus Number (only for VMMR modules)
+         if(firmware==MMR)
+            return (DATA & data_flags::vmmr_bus_mask) / data_flags::vmmr_bus_div;
+         return 0;
       }
 
       unsigned int channel_data() const

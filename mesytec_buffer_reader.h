@@ -614,8 +614,12 @@ namespace mesytec
             }
             else if(is_mdpp_data(next_word)) {
                current_module->set_data_word(next_word);
-               mod_data.add_data( current_module->data_type(), current_module->channel_number(),
-                                  current_module->channel_data(), next_word);
+               if(current_module->firmware == MMR)
+                  mod_data.add_data( current_module->data_type(), current_module->channel_number(), current_module->bus_number(),
+                                     current_module->channel_data(), next_word);
+               else
+                  mod_data.add_data( current_module->data_type(), current_module->channel_number(),
+                                     current_module->channel_data(), next_word);
             }
             buf_pos+=4;
          }

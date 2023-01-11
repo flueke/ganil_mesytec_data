@@ -19,6 +19,7 @@ namespace mesytec
          uint32_t data_word;
          uint16_t data;
          uint8_t channel;
+         uint8_t bus_number;
 
          channel_data()=default;
          ~channel_data()=default;
@@ -26,10 +27,13 @@ namespace mesytec
             : data_word{std::move(_dw)}
          {}
          channel_data(std::string _type, uint8_t _chan, uint16_t _data, uint32_t _dw)
-            : data_type{std::move(_type)}, data_word{std::move(_dw)}, data{std::move(_data)}, channel{std::move(_chan)}
+            : data_type{std::move(_type)}, data_word{std::move(_dw)}, data{std::move(_data)}, channel{std::move(_chan)}, bus_number{0}
+         {}
+         channel_data(std::string _type, uint8_t _chan, uint8_t _bus, uint16_t _data, uint32_t _dw)
+            : data_type{std::move(_type)}, data_word{std::move(_dw)}, data{std::move(_data)}, channel{std::move(_chan)}, bus_number{std::move(_bus)}
          {}
          channel_data(channel_data&& other)
-            : data_type{std::move(other.data_type)}, data_word{std::move(other.data_word)}, data{std::move(other.data)}, channel{std::move(other.channel)}
+            : data_type{std::move(other.data_type)}, data_word{std::move(other.data_word)}, data{std::move(other.data)}, channel{std::move(other.channel)}, bus_number{std::move(other.bus_number)}
          {}
          channel_data(const channel_data&) = delete;
          channel_data& operator=(const channel_data&) = delete;
@@ -37,7 +41,9 @@ namespace mesytec
          {
             if(this != &other)
             {
-               data_type=std::move(other.data_type); data=std::move(other.data); channel=std::move(other.channel); data_word=std::move(other.data_word);
+               data_type=std::move(other.data_type); data=std::move(other.data); channel=std::move(other.channel);
+               bus_number=std::move(other.bus_number);
+               data_word=std::move(other.data_word);
             }
             return *this;
          }
@@ -121,6 +127,10 @@ namespace mesytec
          void add_data(std::string type, uint8_t channel, uint16_t datum, uint32_t data_word)
          {
             data.emplace_back(type,channel,datum,data_word);
+         }
+         void add_data(std::string type, uint8_t channel, uint8_t busnum, uint16_t datum, uint32_t data_word)
+         {
+            data.emplace_back(type,channel,busnum,datum,data_word);
          }
          void add_data(uint32_t data_word)
          {
