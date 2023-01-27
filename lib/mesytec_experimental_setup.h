@@ -2,6 +2,9 @@
 #define MESYTEC_EXPERIMENTAL_SETUP_H
 
 #include "mesytec_module.h"
+
+#define FLM_USE_RAW_POINTERS
+
 #include "fast_lookup_map.h"
 
 //#define DEBUG 1

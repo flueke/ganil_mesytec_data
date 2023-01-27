@@ -20,7 +20,12 @@
 template<typename Index, typename Object>
 class fast_lookup_map
 {
+#ifdef FLM_USE_RAW_POINTERS
+   using Obj_ptr = Object*;
+   Obj_ptr* objects=nullptr;
+#else
    std::vector<std::unique_ptr<Object>> objects;
+#endif
    std::vector<Index>  id_list;
    Index maxindex=0;
    bool initialized{false};
@@ -29,7 +34,16 @@ class fast_lookup_map
    {
       // fill object vector with default-initialized unique_ptr's
       // (no Object is constructed, they all hold nullptr as address)
-      for(int i=0; i<maxindex+1; ++i) objects.push_back(std::unique_ptr<Object>());
+
+#ifdef FLM_USE_RAW_POINTERS
+      objects=new Obj_ptr[maxindex+1];
+#endif
+      for(int i=0; i<maxindex+1; ++i)
+#ifdef FLM_USE_RAW_POINTERS
+         objects[i]=nullptr;
+#else
+         objects.push_back(std::unique_ptr<Object>());
+#endif
       initialized=true;
    }
 
@@ -45,17 +59,42 @@ public:
          {
             auto obj_id=flm.id_list[idx];
             id_list.push_back(obj_id);// essential to increase size of this vector!
+#ifdef FLM_USE_RAW_POINTERS
+            objects[obj_id]=new Object(flm.get_object(obj_id));
+#else
             objects[obj_id].reset(new Object(flm.get_object(obj_id)));
+#endif
          }
       }
+   }
+#ifdef FLM_USE_RAW_POINTERS
+   ~fast_lookup_map()
+   {
+      for(auto i:id_list) delete objects[i];
+      if(objects) delete [] objects;
+   }
+#endif
+   void clear()
+   {
+#ifdef FLM_USE_RAW_POINTERS
+      for(auto i:id_list) delete objects[i];
+#endif
+      id_list.clear();
+#ifdef FLM_USE_RAW_POINTERS
+      if(objects) delete [] objects;
+      objects = nullptr;
+#else
+      objects.clear();
+#endif
+      maxindex=0;
+      initialized=false;
    }
    fast_lookup_map& operator=(const fast_lookup_map& flm)
    {
       if(this != &flm)
       {
+         clear();
          maxindex=flm.maxindex;
-         id_list.clear();
-         objects.clear();
          if(!flm.id_list.empty()){
             initialize_object_storage();
             int idx=0; auto max_idx=flm.size();
@@ -63,7 +102,11 @@ public:
             {
                auto obj_id=flm.id_list[idx];
                id_list.push_back(obj_id);// essential to increase size of this vector!
+#ifdef FLM_USE_RAW_POINTERS
+               objects[obj_id]=new Object(flm.get_object(obj_id));
+#else
                objects[obj_id].reset(new Object(flm.get_object(obj_id)));
+#endif
             }
          }
       }
@@ -149,7 +192,11 @@ public:
          initialize_object_storage();
       }
       // create and place copy-constructed Object in correct slot
+#ifdef FLM_USE_RAW_POINTERS
+      objects[id]=new Object(M);
+#else
       objects[id].reset(new Object(M));
+#endif
    }
    auto size() const
    {
@@ -159,10 +206,16 @@ public:
    {
       return maxindex;
    }
+#ifdef FLM_USE_RAW_POINTERS
+   bool has_object(Index id) const { return objects[id]!=nullptr; }
+   Object& get_object(Index id) { return *objects[id]; }
+   const Object& get_object(Index id) const { return *objects[id]; }
+#else
    bool has_object(Index id) const { return (bool)objects[id]; }
    Object& get_object(Index id) { return *(objects[id].get()); }
-   Object& operator[](Index id) { return get_object(id); }
    const Object& get_object(Index id) const { return *(objects[id].get()); }
+#endif
+   Object& operator[](Index id) { return get_object(id); }
    const Object& operator[](Index id) const { return get_object(id); }
 };
 
