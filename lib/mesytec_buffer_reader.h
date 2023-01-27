@@ -68,15 +68,14 @@ namespace mesytec
       }
 
       buffer_reader() = default;
-      buffer_reader(const experimental_setup& setup)
-         : mesytec_setup{setup}
-      {}
-      void define_setup(const experimental_setup& setup)
+      void read_crate_map(const std::string& map_file)
       {
-         mesytec_setup = setup;
+         mesytec_setup.read_crate_map(map_file);
       }
-      const experimental_setup& get_setup() const { return mesytec_setup; }
-
+      void read_detector_correspondence(const std::string& det_cor_file)
+      {
+         mesytec_setup.read_detector_correspondence(det_cor_file);
+      }
       void dump_end_last_buffer(std::ostream& output)
       {
          dump_buffer(store_end_of_last_buffer.data(), last_buf_store_size, last_buf_store_size/4, output, "", true);
@@ -212,7 +211,7 @@ namespace mesytec
 //                  event.ls(mesytec_setup);
 //               }
       // call callback function
-      F(mesy_event);
+      F(mesy_event,mesytec_setup);
       ++mesy_event.event_counter;
 
       storing_last_complete_event=false;// successful callback
@@ -591,7 +590,6 @@ namespace mesytec
          event mesy_event;
          mod_data.clear();
          module *current_module;
-
          while(words_to_read--)
          {
             auto next_word = read_data_word(buf_pos);
@@ -612,7 +610,7 @@ namespace mesytec
             {
                mod_data.add_data(next_word);
             }
-            else if(is_mdpp_data(next_word)) {
+            else if(is_mdpp_data(next_word)||is_vmmr_data(next_word)) {
                current_module->set_data_word(next_word);
                if(current_module->firmware == VMMR)
                   mod_data.add_data( current_module->get_data_type(), current_module->bus_number(), current_module->channel_number(),
@@ -627,7 +625,7 @@ namespace mesytec
          if(mod_data.module_id) mesy_event.add_module_data(mod_data);
 
          // read all data - call function
-         F(mesy_event);
+         F(mesy_event,mesytec_setup);
       }
       template<typename CallbackFunction>
       void read_event_in_buffer_v0(const uint8_t* _buf, size_t nbytes, CallbackFunction F)
@@ -686,7 +684,7 @@ namespace mesytec
             buf_pos+=4;
          }
          // read all data - call function
-         F(mesy_event);
+         F(mesy_event,mesytec_setup);
       }
       uint32_t get_total_events_parsed() const { return total_number_events_parsed; }
       bool is_storing_last_complete_event() const { return storing_last_complete_event; }
@@ -694,7 +692,7 @@ namespace mesytec
       void cleanup_last_complete_event(CallbackFunction F)
       {
          // call user function for event saved from last time
-         F(mesy_event);
+         F(mesy_event,mesytec_setup);
          // reset event
          mesy_event.clear();
          storing_last_complete_event=false;

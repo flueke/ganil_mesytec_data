@@ -8,14 +8,17 @@ namespace mesytec
    {
       // Read crate set up from a file which contains a line for each module,
       // with each module defined by the 4 parameters
-      //   name - module-id - number of channels - firmware
+      //   name - module-id - number of channels - firmware (for MDPP modules)
+      //   name - module-id - number of buses - VMMR (for VMMR modules)
       //
       // For example:
       //
-      // MDPP-16,0x0,16,SCP
-      // MDPP-32,0x10,32,QDC
+      // MDPP-01,0x0,16,MDPP_SCP
+      // MDPP-02,0x10,32,MDPP_QDC
+      // VMMR-01,0x20,8,VMMR
       //
       // Also, dummy modules must be present representing 'START_READOUT' and 'END_READOUT' markers in data
+
 
       std::ifstream _mapfile;
       _mapfile.open(mapfile);
@@ -77,7 +80,7 @@ namespace mesytec
       // now set up fast_lookup_map
       for(auto& m : modmap)
       {
-         crate_map.add_object(m.first,m.second);
+         crate_map.add_object(m.first,std::move(m.second));
       }
 
       for(auto& mod : crate_map)
@@ -95,13 +98,14 @@ namespace mesytec
    {
       // Read association between module, channel and detector from a file which
       // contains a line for each detector:
-      //   mod-id  -  channel  - detector
+      //   mod-id  -  channel  - detector (for MDPP modules)
+      //   mod-id  -  bus - channel  - detector (for VMMR modules)
       //
       // For example:
       //
       // 0x0,0,SI_0601
       // 0x10,2,CSI_0603
-      //
+      // 0x20,1,63,PISTA_DE_63
 
       std::ifstream _mapfile;
       _mapfile.open(mapfile);
@@ -111,22 +115,41 @@ namespace mesytec
                    << mapfile << std::endl;
       }
       std::string detname,dummy;
-      uint8_t modid, nchan;
+      uint8_t modid, nbus, nchan;
       size_t count=0;
+      int line_number=0;
       do
       {
+         ++line_number;
          std::getline(_mapfile,dummy,',');
          if(!_mapfile.good()) break;
          modid=std::stoi(dummy,&count,0);
-         std::getline(_mapfile,dummy,',');
-         nchan=std::stoi(dummy);
+         if(get_module(modid).is_vmmr_module())
+         {
+            // for VMMR, read bus number before channel subaddress
+            std::getline(_mapfile,dummy,',');
+            nbus=std::stoi(dummy,&count,0);
+         }
+         try {
+            std::getline(_mapfile,dummy,',');
+            nchan=std::stoi(dummy,&count,0);
+         } catch (std::exception& e) {
+            std::string ewhat = e.what();
+            throw(std::runtime_error("problem decoding detector correspondence line "
+                                     + std::to_string(line_number) + ". expected channel number, read this:" + dummy
+                                     + " [exception: " + ewhat));
+         }
          std::getline(_mapfile,detname);
          if(_mapfile.good())
          {
-            crate_map[modid].get_channel_map()[nchan] = detname;
+            if(get_module(modid).is_vmmr_module())
+               set_detector_module_bus_channel(modid,nbus,nchan,detname);
+            else
+               set_detector_module_channel(modid,nchan,detname);
          }
       }
       while(_mapfile.good());
       _mapfile.close();
    }
+
 }

@@ -242,7 +242,7 @@ namespace mesytec
       const uint32_t madc_data = 0x04000000;
       const uint32_t channel_mask_mdpp16 = 0x000F0000;
       const uint32_t channel_mask_mdpp32 = 0x001F0000;
-      const uint32_t channel_div = 0x0010000;
+      const uint32_t mdpp_channel_div = 0x0010000;
       const uint32_t channel_flag_mask_mdpp32 = 0x00600000;
       const uint32_t channel_flag_div_mdpp32 = 0x00200000;
       const uint32_t channel_flag_mask_mdpp16 = 0x00300000;
@@ -269,7 +269,7 @@ namespace mesytec
       const uint32_t vmmr_tdc_mask = 0x0000ffff;
    };
 
-   enum firmware_t
+   enum firmware_t : uint8_t
    {
       UNKNOWN,
       MDPP_SCP,
@@ -292,14 +292,64 @@ namespace mesytec
    bool is_vmmr_tdc_data(uint32_t DATA);
    bool is_vmmr_adc_data(uint32_t DATA);
 
+   /**
+      @brief The bus class
+      A bus groups together a certain number of channels.
+      VMMR modules can have 8 or 16 buses, each with 128 channels.
+      MDDP modules have 1 bus (fake bus), with 16 or 32 channels.
+      Each channel has a name defined in the DetectorCorrespondence.dat file.
+    */
+   struct bus
+   {
+      std::vector<std::string> channel_name;
+      uint8_t id;
+
+      bus(uint8_t _id, uint8_t n_channels)
+         : id{_id}
+      {
+         int chan=0;
+         while(chan<n_channels) {
+            std::string name = "bus_" + std::to_string(id) + "_chan_" + std::to_string(chan);
+            channel_name.push_back(name);
+            ++chan;
+         }
+      }
+      bus()=default;
+      bus(const bus&)=default;
+
+      std::string operator[](uint8_t channel) const
+      {
+         // return name associated with channel
+         return channel_name[channel];
+      }
+      std::string& operator[](uint8_t channel)
+      {
+         // return name associated with channel
+         return channel_name[channel];
+      }
+   };
+
    struct module
    {
+      mutable std::vector<bus> bus_map;
       std::string name;
+      uint32_t channel_mask;
+      uint32_t channel_div;
+      uint32_t channel_flag_mask;
+      uint32_t channel_flag_div;
+      uint32_t DATA;
       uint8_t id;
       firmware_t firmware;
-      uint32_t channel_mask,channel_flag_mask,channel_flag_div;
-      uint32_t DATA;
-      std::map<uint8_t,std::string> channel_map;
+
+      void initialise_bus_map(uint8_t nbus, uint8_t nchan)
+      {
+         // initialise nbus buses with nchan channels in each bus
+         for(uint8_t b=0; b<nbus; ++b)
+         {
+            bus_map.push_back({b,nchan});
+         }
+      }
+
 
       static std::unordered_map<std::string,std::string> data_type_aliases;
       /// Change the name of an existing data type
@@ -308,43 +358,61 @@ namespace mesytec
          data_type_aliases[type]=alias;
       }
 
+      int get_number_of_buses() const { return bus_map.size(); }
+
       module() = default;
-      module(const module&)=default;
+      module(const module&m)=default;
       module(module&&)=default;
       module& operator=(const module&)=default;
       module& operator=(module&&)=default;
       module(const std::string& _name, uint8_t _id, uint8_t nchan, firmware_t F)
          : name{_name}, id{_id}, firmware{F}
       {
-         if(nchan==16)
+         // for MDDP modules, nchan is the number of channels (16 or 32)
+         // for VMMR modules, nchan is the number of optical buses (8 or 16), each assumed to have the maximum 128 channels
+         if(firmware == MDPP_QDC || firmware == MDPP_SCP || firmware == MDPP_CSI)
          {
-            // mdpp-16
-            channel_mask = data_flags::channel_mask_mdpp16;
-            channel_flag_mask = data_flags::channel_flag_mask_mdpp16;
-            channel_flag_div = data_flags::channel_flag_div_mdpp16;
+            channel_div = data_flags::mdpp_channel_div;
+            switch(nchan)
+            {
+            case 16:
+
+               // mdpp-16
+               channel_mask = data_flags::channel_mask_mdpp16;
+               channel_flag_mask = data_flags::channel_flag_mask_mdpp16;
+               channel_flag_div = data_flags::channel_flag_div_mdpp16;
+               break;
+            case 32:
+
+               // mdpp-32
+               channel_mask = data_flags::channel_mask_mdpp32;
+               channel_flag_mask = data_flags::channel_flag_mask_mdpp32;
+               channel_flag_div = data_flags::channel_flag_div_mdpp32;
+               break;
+            default:
+               throw(std::runtime_error("tried to configure MDPP module with " + std::to_string(nchan)
+                                        + " channels, name=" + _name + ", id=" + std::to_string(_id)));
+            }
+            initialise_bus_map(1,nchan);
          }
-         else
+         else if(firmware == VMMR)
          {
-            // mdpp-32
-            channel_mask = data_flags::channel_mask_mdpp32;
-            channel_flag_mask = data_flags::channel_flag_mask_mdpp32;
-            channel_flag_div = data_flags::channel_flag_div_mdpp32;
+            channel_mask = data_flags::vmmr_channel_mask;
+            channel_div = data_flags::vmmr_channel_div;
+            initialise_bus_map(nchan,128);
          }
+
       }
       void set_data_word(uint32_t data){ DATA = data; }
       uint8_t channel_number() const
       {
-         // Channel number (for MDPP) or bus subaddress (for VMMR)
-          if(firmware==VMMR)
-          {
-              if(is_vmmr_adc_data(DATA)) return (DATA & data_flags::vmmr_channel_mask) / data_flags::vmmr_channel_div;
-              return 0;
-          }
-          return (DATA & channel_mask) / data_flags::channel_div;
+         // Channel number (for MDPP) or bus subaddress (for VMMR - only for ADC data)
+         if(firmware==VMMR && !is_vmmr_adc_data(DATA)) return 0;
+         return (DATA & channel_mask) / channel_div;
       }
       uint8_t bus_number() const
       {
-         // Bus Number (only for VMMR modules)
+         // Bus Number (only for VMMR modules). For MDPP modules bus number is always 0.
          if(firmware==VMMR)
             return (DATA & data_flags::vmmr_bus_mask) / data_flags::vmmr_bus_div;
          return 0;
@@ -425,10 +493,7 @@ namespace mesytec
          return "unknown";
       }
 
-      std::map<uint8_t,std::string>& get_channel_map() { return channel_map; }
-
-      /// Get name of detector associated with channel number
-      std::string operator[](uint8_t nchan){ return channel_map[nchan]; }
+      bus& operator[](uint8_t i) const { return bus_map[i]; }
 
       bool is_mdpp_module() const { return (firmware==MDPP_QDC) || (firmware==MDPP_SCP); }
       bool is_vmmr_module() const { return (firmware==VMMR); }
@@ -437,30 +502,30 @@ namespace mesytec
       void print() const
       {
          printf("Module id = %#05x  name = %s\n", id, name.c_str());
-//         if(get_number_of_buses()==1)
-//         {
-//            // single "bus" i.e. MDPP module
-//            const bus& b = bus_map[0];
-//            int chan=0;
-//            for(auto& d : b.channel_name)
-//            {
-//               printf("\tchan=%d   det=%s\n", chan, d.c_str());
-//               ++chan;
-//            }
-//         }
-//         else
-//         {
-//            for(auto& b : bus_map)
-//            {
-//               printf("\tBus id = %d\n", (int)b.id);
-//               int chan=0;
-//               for(auto& d : b.channel_name)
-//               {
-//                  printf("\t\tchan=%d   det=%s\n", chan, d.c_str());
-//                  ++chan;
-//               }
-//            }
-//         }
+         if(get_number_of_buses()==1)
+         {
+            // single "bus" i.e. MDPP module
+            const bus& b = bus_map[0];
+            int chan=0;
+            for(auto& d : b.channel_name)
+            {
+               printf("\tchan=%d   det=%s\n", chan, d.c_str());
+               ++chan;
+            }
+         }
+         else
+         {
+            for(auto& b : bus_map)
+            {
+               printf("\tBus id = %d\n", (int)b.id);
+               int chan=0;
+               for(auto& d : b.channel_name)
+               {
+                  printf("\t\tchan=%d   det=%s\n", chan, d.c_str());
+                  ++chan;
+               }
+            }
+         }
       }
    };
 

@@ -67,6 +67,24 @@ public:
          }
       }
    }
+   fast_lookup_map(fast_lookup_map&& flm)
+   {
+      maxindex=flm.maxindex;
+      if(!flm.id_list.empty()){
+         initialize_object_storage();
+         int idx=0; auto max_idx=flm.size();
+         for(unsigned int idx=0; idx<max_idx; ++idx)
+         {
+            auto obj_id=flm.id_list[idx];
+            id_list.push_back(obj_id);// essential to increase size of this vector!
+#ifdef FLM_USE_RAW_POINTERS
+            objects[obj_id]=new Object(std::move(flm.get_object(obj_id)));
+#else
+            objects[obj_id].reset(new Object(std::move(flm.get_object(obj_id))));
+#endif
+         }
+      }
+   }
 #ifdef FLM_USE_RAW_POINTERS
    ~fast_lookup_map()
    {
@@ -191,11 +209,23 @@ public:
       if(!initialized) {
          initialize_object_storage();
       }
-      // create and place copy-constructed Object in correct slot
+      // create and place copy/move-constructed Object in correct slot
 #ifdef FLM_USE_RAW_POINTERS
       objects[id]=new Object(M);
 #else
       objects[id].reset(new Object(M));
+#endif
+   }
+   void add_object(Index id, Object&& M)
+   {
+      if(!initialized) {
+         initialize_object_storage();
+      }
+      // create and place copy/move-constructed Object in correct slot
+#ifdef FLM_USE_RAW_POINTERS
+      objects[id]=new Object(std::move(M));
+#else
+      objects[id].reset(new Object(std::move(M)));
 #endif
    }
    auto size() const

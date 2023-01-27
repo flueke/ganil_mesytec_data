@@ -30,12 +30,11 @@ void process_initialise (struct my_struct *,
    /* put your code here */
    *error_code = 0;
 
+   MESYbuf = new mesytec::buffer_reader;
    // read crate map
-   mesytec::experimental_setup mesytec_setup;
-   mesytec_setup.read_crate_map(path_to_setup + "/crate_map.dat");
-   mesytec_setup.read_detector_correspondence(path_to_setup + "/detector_correspondence.dat");
+   MESYbuf->read_crate_map(path_to_setup + "/crate_map.dat");
+   MESYbuf->read_detector_correspondence(path_to_setup + "/detector_correspondence.dat");
 
-   MESYbuf = new mesytec::buffer_reader(mesytec_setup);
    printf ("\n[MESYTEC] : ***process_initialise*** called\n");
    printf ("[MESYTEC] : new mesytec_buffer_reader intialised = %p\n", MESYbuf);
 
@@ -213,7 +212,7 @@ void process_block (struct my_struct *,
    //std::cout << "[MESYTEC] : exiting receive-treat loop, " << MESYbuf->get_total_events_parsed() << " events were parsed\n";
 }
 
-void mesytec_mfm_converter::operator()(mesytec::event &event)
+void mesytec_mfm_converter::operator()(mesytec::event &event, mesytec::experimental_setup &)
 {
    // called for each complete event parsed from the mesytec stream
    //

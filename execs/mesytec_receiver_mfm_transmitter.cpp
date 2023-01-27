@@ -44,7 +44,7 @@ struct mesytec_mfm_converter
       delete pub;
    }
 
-   void operator()(mesytec::event &mesy_event)
+   void operator()(mesytec::event &mesy_event, mesytec::experimental_setup&)
    {
       // called for each complete event parsed from the mesytec stream
       //
@@ -137,16 +137,14 @@ int main(int argc, char *argv[])
    printf ("[MESYTEC] : MESYTECSpy port = %s\n",zmq_port.c_str());
    printf ("[MESYTEC] :  - will read crate map in = %s/crate_map.dat\n", path_to_setup.c_str());
 
+   mesytec::buffer_reader MESYbuf;
    // read crate map
-   mesytec::experimental_setup mesytec_setup;
-   mesytec_setup.read_crate_map(path_to_setup + "/crate_map.dat");
-   mesytec_setup.read_detector_correspondence(path_to_setup + "/detector_correspondence.dat");
+   MESYbuf.read_crate_map(path_to_setup + "/crate_map.dat");
 
-   auto MESYbuf = new mesytec::buffer_reader(mesytec_setup);
    printf ("\n[MESYTEC] : ***process_initialise*** called\n");
-   printf ("[MESYTEC] : new mesytec_buffer_reader intialised = %p\n", MESYbuf);
+   printf ("[MESYTEC] : new mesytec_buffer_reader intialised = %p\n", &MESYbuf);
 
-   MESYbuf->initialise_readout();
+   MESYbuf.initialise_readout();
 
    // start zmq receiver here (probably)
    zmq::socket_t* pub{nullptr};
@@ -200,17 +198,17 @@ int main(int argc, char *argv[])
 
       try
       {
-         events_treated = MESYbuf->read_buffer_collate_events((const uint8_t*)event.data(), event.size(), CONVERTER);
+         events_treated = MESYbuf.read_buffer_collate_events((const uint8_t*)event.data(), event.size(), CONVERTER);
       }
       catch (std::exception& e)
       {
          std::string what{ e.what() };
          std::cout << "[MESYTEC] : Error parsing Mesytec buffer : " << what << std::endl;
          // abandon buffer & try next one
-         MESYbuf->reset();
+         MESYbuf.reset();
          continue;
       }
-      tot_events_parsed+=MESYbuf->get_total_events_parsed();
+      tot_events_parsed+=MESYbuf.get_total_events_parsed();
       time_t t;
       time(&t);
       double time_elapsed=difftime(t,current_time);

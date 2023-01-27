@@ -12,10 +12,8 @@ int main()
    std::string path_to_setup = "/home/eindra/ganacq_manip/e818";
    std::string zmq_port = "tcp://mesytecPC:5575";
 
-   mesytec::experimental_setup mesytec_setup;
-   mesytec_setup.read_crate_map(path_to_setup + "/crate_map.dat");
-
-   mesytec::buffer_reader MESYbuf{mesytec_setup};
+   mesytec::buffer_reader MESYbuf;
+   MESYbuf.read_crate_map(path_to_setup + "/crate_map.dat");
 
    zmq::socket_t *pub;
    try {

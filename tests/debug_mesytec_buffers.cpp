@@ -9,10 +9,8 @@ int main(int argc, char* argv[])
 
    std::string file_to_read = argv[1];
 
-   mesytec::experimental_setup mesytec_setup;
-   mesytec_setup.read_crate_map(path_to_setup + "/crate_map.dat");
-
-   mesytec::buffer_reader MESYbuf{mesytec_setup};
+   mesytec::buffer_reader MESYbuf;
+   MESYbuf.read_crate_map(path_to_setup + "/crate_map.dat");
 
    std::ifstream read_file;
    read_file.open(file_to_read);
@@ -45,7 +43,8 @@ int main(int argc, char* argv[])
       {
          in_a_buffer=false;
          std::cout << "got buffer of " << std::dec << buf_size << " bytes" << std::endl;
-         MESYbuf.read_buffer_collate_events(buffer.data(),1000000,[&mesytec_setup](mesytec::event& Event){ /*Event.ls(mesytec_setup);*/ });
+         MESYbuf.read_buffer_collate_events(buffer.data(),1000000,[](mesytec::event& Event,mesytec::experimental_setup& mesytec_setup)
+         { Event.ls(mesytec_setup); });
       }
       if(in_a_buffer)
       {

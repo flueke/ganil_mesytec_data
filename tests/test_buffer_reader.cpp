@@ -10,10 +10,8 @@ int main()
    std::string path_to_setup = "/home/eindra/ganacq_manip/e818_test_indra";
    std::string zmq_port = "tcp://mesytecPC:5575";
 
-   mesytec::experimental_setup mesytec_setup;
-   mesytec_setup.read_crate_map(path_to_setup + "/crate_map.dat");
-
-   mesytec::buffer_reader MESYbuf{mesytec_setup};
+   mesytec::buffer_reader MESYbuf;
+   MESYbuf.read_crate_map(path_to_setup + "/crate_map.dat");
 
    zmq::socket_t *pub;
    try {
@@ -43,7 +41,7 @@ int main()
 #endif
       {
          MESYbuf.read_buffer_collate_events( (const uint8_t*)event.data(), event.size(),
-                                             [=](mesytec::event& Event){ Event.ls(mesytec_setup); });
+                                             [](mesytec::event& Event,mesytec::experimental_setup& mesytec_setup){ Event.ls(mesytec_setup); });
       }
    }
 }

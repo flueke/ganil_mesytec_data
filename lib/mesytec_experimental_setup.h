@@ -67,6 +67,7 @@ namespace mesytec
       };
 
       experimental_setup() {}
+      experimental_setup(const experimental_setup&)=delete;
       experimental_setup(std::vector<module> &&modules)
       {
          // define crate map with a vector of module constructors
@@ -105,12 +106,21 @@ namespace mesytec
 
       void set_detector_module_channel(uint8_t modid, uint8_t nchan, const std::string& detname)
       {
-         get_module(modid).get_channel_map()[nchan] = detname;
+         get_module(modid)[0][nchan]=detname;
       }
-      /// Get name of detector associated with channel number
-      std::string get_detector(uint8_t modid, uint8_t chan)
+      void set_detector_module_bus_channel(uint8_t modid, uint8_t nbus, uint8_t nchan, const std::string& detname)
       {
-         return crate_map[modid][chan];
+         get_module(modid)[nbus][nchan]=detname;
+      }
+      /// Get name of detector associated with module & channel number (bus=0 i.e. MDPP)
+      std::string get_detector(uint8_t modid, uint8_t nchan) const
+      {
+         return get_module(modid)[0][nchan];
+      }
+      /// Get name of detector associated with module, bus & channel number (bus=0 i.e. MDPP)
+      std::string get_detector(uint8_t modid, uint8_t nbus, uint8_t nchan) const
+      {
+         return get_module(modid)[nbus][nchan];
       }
       void print();
    };
