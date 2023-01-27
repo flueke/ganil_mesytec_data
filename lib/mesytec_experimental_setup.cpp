@@ -40,6 +40,9 @@ namespace mesytec
       firmwares["START_READOUT"] = mesytec::START_READOUT;
       firmwares["END_READOUT"] = mesytec::END_READOUT;
       firmwares["MVLC_SCALER"] = mesytec::MVLC_SCALER;
+
+      // dummy map
+      std::map<uint8_t,module> modmap;
       do
       {
          std::string dummy;
@@ -63,23 +66,29 @@ namespace mesytec
                readout.set_event_end_marker(modid);
             else
             {
-               crate_map[modid] = module{name, modid, nchan, firmwares[firm]};
-               readout.add_module(modid);
+               modmap[modid] = module{name, modid, nchan, firmwares[firm]};
+               crate_map.add_id(modid);
             }
          }
       }
       while(_mapfile.good());
       _mapfile.close();
 
-      for(auto& m : crate_map)
+      // now set up fast_lookup_map
+      for(auto& m : modmap)
       {
-         printf("Module id = %#05x  firmware = %d  name = %s\n", m.second.id, m.second.firmware, m.second.name.c_str());
+         crate_map.add_object(m.first,m.second);
+      }
+
+      for(auto& mod : crate_map)
+      {
+         printf("Module id = %#05x  firmware = %d  name = %s\n", mod.id, mod.firmware, mod.name.c_str());
       }
    }
 
    void mesytec::experimental_setup::print()
    {
-      for(auto& m : crate_map) m.second.print();
+      for(auto& m : crate_map) m.print();
    }
 
    void experimental_setup::read_detector_correspondence(const std::string &mapfile)

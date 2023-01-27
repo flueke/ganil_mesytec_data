@@ -6,7 +6,7 @@ install(TARGETS mesytec_data
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-install(FILES mesytec_module.h mesytec_data.h mesytec_buffer_reader.h mesytec_experimental_setup.h
+install(FILES mesytec_module.h mesytec_data.h mesytec_buffer_reader.h mesytec_experimental_setup.h fast_lookup_map.h
    DESTINATION ${CMAKE_INSTALL_PKGINCDIR})
 
 #---install cmake stuff for find_package(mesytec_data) for use by other projects
