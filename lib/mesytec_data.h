@@ -15,40 +15,29 @@ namespace mesytec
 {
       const uint16_t mfm_frame_type = 0x4adf;
 
-      struct channel_data
+      class channel_data
       {
-         std::string data_type; /// "adc", "tdc", "qdc_short", "qdc_long", "trig0", "trig1"
          uint32_t data_word;
          uint16_t data;
-         uint8_t channel;
          uint8_t bus_number;
-
+         uint8_t channel;
+         module::datatype_t data_type;
+public:
          channel_data()=default;
          ~channel_data()=default;
          channel_data(uint32_t _dw)
             : data_word{std::move(_dw)}
          {}
-         channel_data(std::string _type, uint8_t _chan, uint16_t _data, uint32_t _dw)
-            : data_type{std::move(_type)}, data_word{std::move(_dw)}, data{std::move(_data)}, channel{std::move(_chan)}, bus_number{0}
+         channel_data(module::datatype_t _type, uint8_t _chan, uint16_t _data, uint32_t _dw)
+            : data_type{_type}, data_word{_dw}, data{_data}, bus_number{0}, channel{_chan}
          {}
-         channel_data(std::string _type, uint8_t _chan, uint8_t _bus, uint16_t _data, uint32_t _dw)
-            : data_type{std::move(_type)}, data_word{std::move(_dw)}, data{std::move(_data)}, channel{std::move(_chan)}, bus_number{std::move(_bus)}
+         channel_data(module::datatype_t _type, uint8_t _bus, uint8_t _chan, uint16_t _data, uint32_t _dw)
+            : data_type{_type}, data_word{_dw}, data{_data}, bus_number{_bus}, channel{_chan}
          {}
-         channel_data(channel_data&& other)
-            : data_type{std::move(other.data_type)}, data_word{std::move(other.data_word)}, data{std::move(other.data)}, channel{std::move(other.channel)}, bus_number{std::move(other.bus_number)}
-         {}
+         channel_data(channel_data&& other)=default;
          channel_data(const channel_data&) = delete;
          channel_data& operator=(const channel_data&) = delete;
-         channel_data& operator=(channel_data&& other)
-         {
-            if(this != &other)
-            {
-               data_type=std::move(other.data_type); data=std::move(other.data); channel=std::move(other.channel);
-               bus_number=std::move(other.bus_number);
-               data_word=std::move(other.data_word);
-            }
-            return *this;
-         }
+         channel_data& operator=(channel_data&& other)=default;
          void ls(const mesytec::experimental_setup &cfg, uint8_t mod_id) const
          {
             auto& mod = cfg.get_module(mod_id);
@@ -59,6 +48,12 @@ namespace mesytec
          {
             buf.push_back(data_word);
          }
+
+         uint32_t get_data_word() const { return data_word; }
+         uint16_t get_data() const { return data; }
+         uint8_t get_bus_number() const { return bus_number; }
+         uint8_t get_channel_number() const { return channel; }
+         module::datatype_t get_data_type() const { return data_type; }
       };
 
       struct module_data
@@ -113,13 +108,13 @@ namespace mesytec
          module_data(const module_data&) = delete;
          module_data& operator=(const module_data&) = delete;
          module_data& operator=(module_data&&)=default;
-         void add_data(std::string type, uint8_t channel, uint16_t datum, uint32_t data_word)
+         void add_data(module::datatype_t type, uint8_t channel, uint16_t datum, uint32_t data_word)
          {
             data.emplace_back(type,channel,datum,data_word);
          }
-         void add_data(std::string type, uint8_t channel, uint8_t busnum, uint16_t datum, uint32_t data_word)
+         void add_data(module::datatype_t type, uint8_t busnum, uint8_t channel, uint16_t datum, uint32_t data_word)
          {
-            data.emplace_back(type,channel,busnum,datum,data_word);
+            data.emplace_back(type,busnum,channel,datum,data_word);
          }
          void add_data(uint32_t data_word)
          {
@@ -146,7 +141,7 @@ namespace mesytec
                assert(data.size()==4);
                uint64_t x=0;
                int i=0;
-               for(auto& d : data) x += ((uint64_t)d.data_word)<<(16*(i++));
+               for(auto& d : data) x += ((uint64_t)d.get_data_word())<<(16*(i++));
                std::cout << " = " << std::hex << std::showbase << x << std::endl;
             }
             else

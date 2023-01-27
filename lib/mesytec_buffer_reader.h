@@ -615,10 +615,10 @@ namespace mesytec
             else if(is_mdpp_data(next_word)) {
                current_module->set_data_word(next_word);
                if(current_module->firmware == VMMR)
-                  mod_data.add_data( current_module->data_type(), current_module->channel_number(), current_module->bus_number(),
+                  mod_data.add_data( current_module->get_data_type(), current_module->bus_number(), current_module->channel_number(),
                                      current_module->channel_data(), next_word);
                else
-                  mod_data.add_data( current_module->data_type(), current_module->channel_number(),
+                  mod_data.add_data( current_module->get_data_type(), current_module->channel_number(),
                                      current_module->channel_data(), next_word);
             }
             buf_pos+=4;
@@ -668,7 +668,7 @@ namespace mesytec
                reading_data=true;
                auto& mod = mesytec_setup.get_module(mod_data.module_id);
                mod.set_data_word(next_word);
-               mod_data.add_data( mod.data_type(), mod.channel_number(), mod.channel_data(), next_word);
+               mod_data.add_data( mod.get_data_type(), mod.channel_number(), mod.channel_data(), next_word);
             }
             // due to the confusion between 'end of event' and 'frame header' words in revision 0,
             // here we replace the original test 'if(is_end_of_event...' with 'if(is_end_of_event || is_frame_header...'

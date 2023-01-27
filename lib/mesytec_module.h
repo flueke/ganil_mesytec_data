@@ -371,33 +371,56 @@ namespace mesytec
       {
           if(firmware == VMMR)
              printf("== VMMR-DATA :: %s [%#04x] bus = %d chan_number = %03d    %s = %5d\n",
-                        name.c_str(), id, bus_number(), channel_number(), data_type().c_str(), channel_data());
+                        name.c_str(), id, bus_number(), channel_number(), get_data_type_name(get_data_type()).c_str(), channel_data());
           else
           printf("== MDPP-DATA :: %s [%#04x]  chan_number = %02d    %s = %5d\n",
-                     name.c_str(), id, channel_number(), data_type().c_str(), channel_data());
+                     name.c_str(), id, channel_number(), get_data_type_name(get_data_type()).c_str(), channel_data());
       }
-      std::string data_type() const
+      enum datatype_t : uint8_t
       {
-         // =0 : data is ADC or QDC_long
-         // =1 : data is TDC
-         // =3 : data is QDC_short
-         // =2 : data is trigger time
+         unknown,
+         ADC,
+         TDC,
+         QDC_long,
+         QDC_short,
+         Trigger_time
+      };
 
-          if(firmware==VMMR)
-          {
-              if(is_vmmr_adc_data(DATA)) return "adc";
-              else return "tdc";
-          }
-          switch(channel_flags())
+      datatype_t get_data_type() const
+      {
+         if(firmware==VMMR)
+         {
+            if(is_vmmr_adc_data(DATA)) return ADC;
+            else return TDC;
+         }
+         switch(channel_flags())
          {
          case 0:
-            return firmware==MDPP_QDC ? data_type_aliases["qdc_long"] : data_type_aliases["adc"];
+            return firmware==MDPP_QDC ? QDC_long : ADC;
          case 1:
-            return data_type_aliases["tdc"];
+            return TDC;
          case 2:
-            return data_type_aliases["trig"];
+            return Trigger_time;
          case 3:
+            return QDC_short;
+         }
+         return unknown;
+      }
+
+      std::string get_data_type_name(datatype_t d) const
+      {
+         switch(d)
+         {
+         case ADC:
+            return data_type_aliases["adc"];
+         case TDC:
+            return data_type_aliases["tdc"];
+         case Trigger_time:
+            return data_type_aliases["trig"];
+         case QDC_short:
             return data_type_aliases["qdc_short"];
+         case QDC_long:
+            return data_type_aliases["qdc_long"];
          }
          return "unknown";
       }
