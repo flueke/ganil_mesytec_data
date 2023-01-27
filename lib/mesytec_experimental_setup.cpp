@@ -36,10 +36,6 @@ namespace mesytec
       firmwares["START_READOUT"] = mesytec::START_READOUT;
       firmwares["END_READOUT"] = mesytec::END_READOUT;
       firmwares["MVLC_SCALER"] = mesytec::MVLC_SCALER;
-
-      // dummy map
-      std::map<uint8_t,module> modmap;
-      uint8_t maxmodid=0;
       do
       {
          std::string dummy;
@@ -59,8 +55,7 @@ namespace mesytec
                readout.set_event_end_marker(modid);
             else
             {
-               modmap[modid] = module{name, modid, nchan, firmwares[firm]};
-               if(modid>maxmodid) maxmodid=modid;
+               crate_map[modid] = module{name, modid, nchan, firmwares[firm]};
                readout.add_module(modid);
             }
          }
@@ -68,16 +63,9 @@ namespace mesytec
       while(_mapfile.good());
       _mapfile.close();
 
-      // now set up std::vector of modules with size large enough to contain the largest module address
-      crate_map.reserve(maxmodid+1);
-      for(auto& m : modmap)
-      {
-         crate_map[m.second.id] = std::move(m.second);
-      }
-
       for(auto& m : crate_map)
       {
-         printf("Module id = %#05x  firmware = %d  name = %s\n", m.id, m.firmware, m.name.c_str());
+         printf("Module id = %#05x  firmware = %d  name = %s\n", m.second.id, m.second.firmware, m.second.name.c_str());
       }
    }
 
@@ -85,9 +73,9 @@ namespace mesytec
    {
       for(auto& m : crate_map)
       {
-         for(auto& d : m.get_channel_map())
+         for(auto& d : m.second.get_channel_map())
          {
-            printf("mod=%#x  chan=%d   det=%s\n", m.id, d.first, d.second.c_str());
+            printf("mod=%#x  chan=%d   det=%s\n", m.second.id, d.first, d.second.c_str());
          }
       }
    }

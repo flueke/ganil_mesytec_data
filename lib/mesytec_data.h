@@ -49,7 +49,7 @@ namespace mesytec
          }
          void ls(const mesytec::experimental_setup &cfg, uint8_t mod_id) const
          {
-            auto mod = cfg.get_module(mod_id);
+            auto& mod = cfg.get_module(mod_id);
             mod.set_data_word(data_word);
             mod.print_mdpp_data();
          }
@@ -139,7 +139,7 @@ namespace mesytec
          void ls(const mesytec::experimental_setup & cfg) const
          {
             //std::cout << " Module-ID=" << std::hex << std::showbase << (unsigned int)module_id << std::dec;
-            auto mod = cfg.get_module(module_id);
+            auto& mod = cfg.get_module(module_id);
             //std::cout << " " << mod.name;
             if(mod.is_mdpp_module())
             {

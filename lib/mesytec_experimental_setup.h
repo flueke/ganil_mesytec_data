@@ -95,7 +95,7 @@ namespace mesytec
  */
    class experimental_setup
    {
-      std::vector<module> crate_map; /// map module id to module
+      mutable std::map<uint8_t, module> crate_map; /// map module id to module
    public:
       class crate_map_not_found : public std::runtime_error
       {
@@ -114,12 +114,6 @@ namespace mesytec
          //            {"MDPP-16", 0x0, 16, mesytec::SCP},
          //            {"MDPP-32", 0x10, 32, mesytec::SCP}
          //         });
-
-
-         // dummy map
-         std::map<uint8_t,module> modmap;
-         uint8_t maxmodid=0;
-
          for(auto& mod : modules) {
             if(mod.firmware == START_READOUT)
                readout.set_event_start_marker(mod.id);
@@ -127,16 +121,9 @@ namespace mesytec
                readout.set_event_end_marker(mod.id);
             else
             {
-               modmap[mod.id] = std::move(mod);
-               if(mod.id>maxmodid) maxmodid=mod.id;
+               crate_map[mod.id] = std::move(mod);
                readout.add_module(mod.id);
             }
-         }
-         // now set up std::vector of modules with size large enough to contain the largest module address
-         crate_map.reserve(maxmodid+1);
-         for(auto& m : modmap)
-         {
-            crate_map[m.second.id] = std::move(m.second);
          }
       }
       void read_crate_map(const std::string& mapfile);
@@ -144,8 +131,7 @@ namespace mesytec
 
       setup_readout readout;
 
-      module& get_module(uint8_t mod_id) { return crate_map[mod_id]; }
-      const module& get_module(uint8_t mod_id) const { return crate_map[mod_id]; }
+      module& get_module(uint8_t mod_id) const { return crate_map[mod_id]; }
       size_t number_of_modules() const
       {
          return crate_map.size();
