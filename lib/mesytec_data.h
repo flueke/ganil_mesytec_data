@@ -9,6 +9,8 @@
 #include <cassert>
 #include "mesytec_experimental_setup.h"
 
+#define MESYTEC_DATA_NO_MDPP_NAMESPACE
+
 namespace mesytec
 {
       const uint16_t mfm_frame_type = 0x4adf;
@@ -51,7 +53,7 @@ namespace mesytec
          {
             auto& mod = cfg.get_module(mod_id);
             mod.set_data_word(data_word);
-            mod.print_mdpp_data();
+            mod.print_data();
          }
          void add_data_to_buffer(std::vector<uint32_t>& buf) const
          {
@@ -62,11 +64,11 @@ namespace mesytec
       struct module_data
       {
          std::vector<channel_data> data;
-         uint32_t event_counter : 30;
+         uint32_t event_counter;
          uint32_t header_word;
          uint32_t eoe_word;
-         uint16_t data_words : 12; // number of data items + 1 EOE
-         uint8_t module_id{0};
+         uint16_t data_words; // number of data items + 1 EOE
+         uint8_t module_id{UNKNOWN};
 
          void clear()
          {
@@ -91,7 +93,7 @@ namespace mesytec
                data_words = length_of_data_mdpp(_header_word);
                break;
 
-            case MMR:
+            case VMMR:
                data_words = length_of_data_vmmr(_header_word);
                break;
 
@@ -107,23 +109,10 @@ namespace mesytec
          }
          module_data()=default;
          ~module_data()=default;
-         module_data(module_data&& other)
-            : data{std::move(other.data)}, event_counter{other.event_counter},
-              header_word{other.header_word},
-              eoe_word{other.eoe_word}, data_words{other.data_words}, module_id{other.module_id}
-         {}
+         module_data(module_data&&)=default;
          module_data(const module_data&) = delete;
          module_data& operator=(const module_data&) = delete;
-         module_data& operator=(module_data&& other)
-         {
-            if(this != &other)
-            {
-               data=std::move(other.data); event_counter=other.event_counter;
-               data_words=other.data_words; module_id=other.module_id;
-               header_word=other.header_word; eoe_word=other.eoe_word;
-            }
-            return *this;
-         }
+         module_data& operator=(module_data&&)=default;
          void add_data(std::string type, uint8_t channel, uint16_t datum, uint32_t data_word)
          {
             data.emplace_back(type,channel,datum,data_word);
@@ -189,10 +178,16 @@ namespace mesytec
 
       struct event
       {
-         std::vector<module_data> modules = std::vector<module_data>(50);
+         std::vector<module_data> modules;
          uint32_t event_counter;
          uint16_t tgv_ts_lo,tgv_ts_mid,tgv_ts_hi;
 
+         event()
+         {
+            // reserve capacity for data from up to 25 modules (> capacity of 1 VME crate)
+            // to avoid reallocations as data is 'pushed back' in to the vector
+            modules.reserve(25);
+         }
          void clear()
          {
             modules.clear();

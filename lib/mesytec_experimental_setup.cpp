@@ -28,10 +28,14 @@ namespace mesytec
       std::string name, firm;
       uint8_t modid, nchan;
       std::map<std::string,mesytec::firmware_t> firmwares;
+      firmwares["UNKNOWN"] = mesytec::UNKNOWN;
+      firmwares["MDPP_SCP"] = mesytec::MDPP_SCP;
+      firmwares["MDPP_QDC"] = mesytec::MDPP_QDC;
+      firmwares["MDPP_CSI"] = mesytec::MDPP_CSI;
       firmwares["SCP"] = mesytec::MDPP_SCP;
       firmwares["QDC"] = mesytec::MDPP_QDC;
       firmwares["CSI"] = mesytec::MDPP_CSI;
-      firmwares["MMR"] = mesytec::MMR;
+      firmwares["VMMR"] = mesytec::VMMR;
       firmwares["TGV"] = mesytec::TGV;
       firmwares["START_READOUT"] = mesytec::START_READOUT;
       firmwares["END_READOUT"] = mesytec::END_READOUT;
@@ -49,6 +53,10 @@ namespace mesytec
          std::getline(_mapfile,firm);
          if(_mapfile.good())
          {
+            if(firmwares[firm]==UNKNOWN)
+            {
+               throw(std::runtime_error("module "+name+" in crate map with unknown firmware "+firm));
+            }
             if(firmwares[firm]==START_READOUT)
                readout.set_event_start_marker(modid);
             else if(firmwares[firm]==END_READOUT)
@@ -71,13 +79,7 @@ namespace mesytec
 
    void mesytec::experimental_setup::print()
    {
-      for(auto& m : crate_map)
-      {
-         for(auto& d : m.second.get_channel_map())
-         {
-            printf("mod=%#x  chan=%d   det=%s\n", m.second.id, d.first, d.second.c_str());
-         }
-      }
+      for(auto& m : crate_map) m.second.print();
    }
 
    void experimental_setup::read_detector_correspondence(const std::string &mapfile)

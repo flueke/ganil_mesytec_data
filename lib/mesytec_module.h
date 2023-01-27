@@ -271,10 +271,11 @@ namespace mesytec
 
    enum firmware_t
    {
+      UNKNOWN,
       MDPP_SCP,
       MDPP_QDC,
       MDPP_CSI,
-      MMR,
+      VMMR,
       TGV,
       START_READOUT,
       END_READOUT,
@@ -308,6 +309,10 @@ namespace mesytec
       }
 
       module() = default;
+      module(const module&)=default;
+      module(module&&)=default;
+      module& operator=(const module&)=default;
+      module& operator=(module&&)=default;
       module(const std::string& _name, uint8_t _id, uint8_t nchan, firmware_t F)
          : name{_name}, id{_id}, firmware{F}
       {
@@ -330,7 +335,7 @@ namespace mesytec
       uint8_t channel_number() const
       {
          // Channel number (for MDPP) or bus subaddress (for VMMR)
-          if(firmware==MMR)
+          if(firmware==VMMR)
           {
               if(is_vmmr_adc_data(DATA)) return (DATA & data_flags::vmmr_channel_mask) / data_flags::vmmr_channel_div;
               return 0;
@@ -340,14 +345,14 @@ namespace mesytec
       uint8_t bus_number() const
       {
          // Bus Number (only for VMMR modules)
-         if(firmware==MMR)
+         if(firmware==VMMR)
             return (DATA & data_flags::vmmr_bus_mask) / data_flags::vmmr_bus_div;
          return 0;
       }
 
       unsigned int channel_data() const
       {
-          if(firmware==MMR)
+          if(firmware==VMMR)
           {
               if(is_vmmr_adc_data(DATA)) return (DATA & data_flags::vmmr_adc_mask);
               if(is_vmmr_tdc_data(DATA)) return (DATA & data_flags::vmmr_tdc_mask);
@@ -362,20 +367,14 @@ namespace mesytec
          // =2 : data is trigger time
           return (DATA & channel_flag_mask)/channel_flag_div;
       }
-      void print_mdpp_data() const
+      void print_data() const
       {
-          if(firmware == MMR)
-          {
-//              printf("== VMMR-DATA ::  %s [%#04x]  bus_number = %02d   chan_number = %02d    %s = %5d\n",
-//                         name.c_str(), id, bus_number(), channel_number(), data_type().c_str(), channel_data());
-//              if(data_type()=="TDC") printf("TDC: %02d %5d\n",
-//                        bus_number(), channel_data());
-              if(data_type()=="ADC") printf("%02d %02d %5d\n",
-                        bus_number(), channel_number(), channel_data());
-          }
-//          else
-//          printf("== MDPP-DATA :: %s [%#04x]  chan_number = %02d    %s = %5d\n",
-//                     name.c_str(), id, channel_number(), data_type().c_str(), channel_data());
+          if(firmware == VMMR)
+             printf("== VMMR-DATA :: %s [%#04x] bus = %d chan_number = %03d    %s = %5d\n",
+                        name.c_str(), id, bus_number(), channel_number(), data_type().c_str(), channel_data());
+          else
+          printf("== MDPP-DATA :: %s [%#04x]  chan_number = %02d    %s = %5d\n",
+                     name.c_str(), id, channel_number(), data_type().c_str(), channel_data());
       }
       std::string data_type() const
       {
@@ -384,10 +383,10 @@ namespace mesytec
          // =3 : data is QDC_short
          // =2 : data is trigger time
 
-          if(firmware==MMR)
+          if(firmware==VMMR)
           {
-              if(is_vmmr_adc_data(DATA)) return "ADC";
-              else return "TDC";
+              if(is_vmmr_adc_data(DATA)) return "adc";
+              else return "tdc";
           }
           switch(channel_flags())
          {
@@ -409,8 +408,37 @@ namespace mesytec
       std::string operator[](uint8_t nchan){ return channel_map[nchan]; }
 
       bool is_mdpp_module() const { return (firmware==MDPP_QDC) || (firmware==MDPP_SCP); }
-      bool is_vmmr_module() const { return (firmware==MMR); }
+      bool is_vmmr_module() const { return (firmware==VMMR); }
       bool is_mvlc_scaler() const { return firmware==MVLC_SCALER; }
+
+      void print() const
+      {
+         printf("Module id = %#05x  name = %s\n", id, name.c_str());
+//         if(get_number_of_buses()==1)
+//         {
+//            // single "bus" i.e. MDPP module
+//            const bus& b = bus_map[0];
+//            int chan=0;
+//            for(auto& d : b.channel_name)
+//            {
+//               printf("\tchan=%d   det=%s\n", chan, d.c_str());
+//               ++chan;
+//            }
+//         }
+//         else
+//         {
+//            for(auto& b : bus_map)
+//            {
+//               printf("\tBus id = %d\n", (int)b.id);
+//               int chan=0;
+//               for(auto& d : b.channel_name)
+//               {
+//                  printf("\t\tchan=%d   det=%s\n", chan, d.c_str());
+//                  ++chan;
+//               }
+//            }
+//         }
+      }
    };
 
    std::map<uint8_t, module> define_setup(std::vector<module>&& modules);

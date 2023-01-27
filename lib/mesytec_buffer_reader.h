@@ -68,10 +68,10 @@ namespace mesytec
       }
 
       buffer_reader() = default;
-      buffer_reader(experimental_setup& setup)
+      buffer_reader(const experimental_setup& setup)
          : mesytec_setup{setup}
       {}
-      void define_setup(experimental_setup& setup)
+      void define_setup(const experimental_setup& setup)
       {
          mesytec_setup = setup;
       }
@@ -314,7 +314,7 @@ namespace mesytec
                   mod_data.set_header_word(next_word,firmware);
                   //std::cout << "firmware = " << (int)firmware << std::endl;
                   reading_mdpp = (firmware == MDPP_SCP || firmware == MDPP_QDC || firmware == MDPP_CSI);
-                  reading_vmmr = (firmware == MMR);
+                  reading_vmmr = (firmware == VMMR);
                   reading_tgv = (firmware == TGV);
                   reading_mvlc_scaler = (firmware == MVLC_SCALER);
 //                  if(reading_vmmr) {
@@ -614,7 +614,7 @@ namespace mesytec
             }
             else if(is_mdpp_data(next_word)) {
                current_module->set_data_word(next_word);
-               if(current_module->firmware == MMR)
+               if(current_module->firmware == VMMR)
                   mod_data.add_data( current_module->data_type(), current_module->channel_number(), current_module->bus_number(),
                                      current_module->channel_data(), next_word);
                else
