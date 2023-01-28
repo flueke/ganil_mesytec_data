@@ -544,7 +544,7 @@ namespace mesytec
       }
 
       template<typename CallbackFunction>
-      void read_event_in_buffer(const uint8_t* _buf, size_t nbytes, CallbackFunction F, u8 mfm_frame_rev)
+      void read_event_in_buffer(const uint8_t* _buf, size_t nbytes, CallbackFunction F, u8 mfm_frame_rev = 1)
       {
          // Decode buffers encapsulated in MFM frames, based on the frame revision id
          //

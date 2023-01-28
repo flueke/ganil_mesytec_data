@@ -2,7 +2,9 @@ add_executable(test_event_builder test_event_builder.cpp)
 target_link_libraries(test_event_builder mesytec_data)
 add_executable(debug_mesytec_buffers debug_mesytec_buffers.cpp)
 target_link_libraries(debug_mesytec_buffers mesytec_data)
-install(TARGETS test_event_builder debug_mesytec_buffers
+add_executable(example_analysis example_analysis.cpp)
+target_link_libraries(example_analysis mesytec_data)
+install(TARGETS example_analysis test_event_builder debug_mesytec_buffers
     EXPORT ${CMAKE_PROJECT_NAME}Exports
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/mesytec_data_tests

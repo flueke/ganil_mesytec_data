@@ -63,13 +63,13 @@ struct mesytec_mfm_converter
       mfmevent[7] = 0x1; // frame revision 1
 
       // next 6 bytes [8]-[13] are for the timestamp
-      *((uint16_t*)(&mfmevent[8])) = mesy_event.tgv_ts_lo;
-      *((uint16_t*)(&mfmevent[10])) = mesy_event.tgv_ts_mid;
-      *((uint16_t*)(&mfmevent[12])) = mesy_event.tgv_ts_hi;
+      *((uint16_t*)(&mfmevent[8])) = mesy_event.get_tgv_ts_lo();
+      *((uint16_t*)(&mfmevent[10])) = mesy_event.get_tgv_ts_mid();
+      *((uint16_t*)(&mfmevent[12])) = mesy_event.get_tgv_ts_hi();
       //printf("mfmframe: ts_lo %#06x  ts_mid %#06x  ts_hi %#06x\n",*((uint16_t*)(&mfmevent[8])),*((uint16_t*)(&mfmevent[10])),*((uint16_t*)(&mfmevent[12])));
 
       // bytes [14]-[17]: event number (event counter from mesytec EOE)
-      *((uint32_t*)(&mfmevent[14])) = mesy_event.event_counter;
+      *((uint32_t*)(&mfmevent[14])) = mesy_event.get_event_counter();
       // bytes [20]-[23] number of bytes in mesytec data blob
       *((uint32_t*)(&mfmevent[20])) = (uint32_t)mesy_event.size_of_buffer()*4;
 
