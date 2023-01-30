@@ -6,18 +6,35 @@ namespace mesytec
 {
    void experimental_setup::read_crate_map(const std::string &mapfile)
    {
-      // Read crate set up from a file which contains a line for each module,
-      // with each module defined by the 4 parameters
-      //   name - module-id - number of channels - firmware (for MDPP modules)
-      //   name - module-id - number of buses - VMMR (for VMMR modules)
-      //
-      // For example:
-      //
-      // MDPP-01,0x0,16,MDPP_SCP
-      // MDPP-02,0x10,32,MDPP_QDC
-      // VMMR-01,0x20,8,VMMR
-      //
-      // Also, dummy modules must be present representing 'START_READOUT' and 'END_READOUT' markers in data
+      /// \param[in] mapfile full path to file containing crate map description
+      ///
+      /// Read crate set up from a file which contains a line for each module,
+      /// with each module defined by the 4 parameters
+      ///   + name - module-id - number of channels - firmware (for MDPP modules)
+      ///   + name - module-id - number of buses - VMMR (for VMMR modules)
+      ///
+      /// For example:
+      ///~~~
+      /// MDPP-01,0x0,16,MDPP_SCP
+      /// MDPP-02,0x10,32,MDPP_QDC
+      /// VMMR-01,0x20,8,VMMR
+      ///~~~
+      ///
+      /// In addition, dummy modules in this file are used to indicate:
+      ///    + the fake module id's used for `START_READOUT` and `END_READOUT` markers in data
+      ///    + the fake module id's used for any scaler data coming from the MVLC controller
+      ///
+      /// | Module type | firmware | name |
+      /// |-------------|----------|------|
+      /// | MDPP        | SCP      | MDPP_SCP |
+      /// | ^           | ^        | SCP |
+      /// | ^           | QDC      | MDPP_QDC |
+      /// | ^           | ^        | QDC |
+      /// | VMMR        | VMMR     | VMMR |
+      /// | TGV         | TGV      | TGV |
+      /// | MVLC_SCALER | MVLC_SCALER | MVLC_SCALER |
+      /// | START_READOUT | START_READOUT | START_READOUT |
+      /// | END_READOUT | END_READOUT | END_READOUT |
 
 
       std::ifstream _mapfile;
@@ -96,16 +113,19 @@ namespace mesytec
 
    void experimental_setup::read_detector_correspondence(const std::string &mapfile)
    {
-      // Read association between module, channel and detector from a file which
-      // contains a line for each detector:
-      //   mod-id  -  channel  - detector (for MDPP modules)
-      //   mod-id  -  bus - channel  - detector (for VMMR modules)
-      //
-      // For example:
-      //
-      // 0x0,0,SI_0601
-      // 0x10,2,CSI_0603
-      // 0x20,1,63,PISTA_DE_63
+      /// Read association between module, channel and detector from a file which
+      /// contains a line for each detector:
+      ///    + `mod-id  -  channel  - detector`    (for MDPP modules)
+      ///    + `mod-id  -  bus  - channel  - detector` (for VMMR modules)
+      ///
+      /// For example (the `mod-id` values correspond to those in the example crate map description file
+      /// used in read_crate_map() ):
+      ///
+      ///~~~
+      /// 0x0,0,SI_0601
+      /// 0x10,2,CSI_0603
+      /// 0x20,1,63,PISTA_DE_63
+      ///~~~
 
       std::ifstream _mapfile;
       _mapfile.open(mapfile);

@@ -12,6 +12,12 @@
 
 namespace mesytec
 {
+   /**
+      @class buffer_reader
+      @brief parse mesytec data in buffers
+
+      For an example of use, see example_analysis.cpp
+    */
    class buffer_reader
    {
       experimental_setup mesytec_setup;
@@ -38,6 +44,166 @@ namespace mesytec
       uint8_t last_buffer[200];
       bool have_last_buffer=false;
 
+      template<typename CallbackFunction>
+      void treat_complete_event(CallbackFunction F)
+   {
+      // the end of the readout of all modules is signalled by the END_READOUT dummy module
+
+      got_header=false;
+      //if(printit) std::cout << "readout complete" << std::endl;
+
+      // check TGV data
+      mesy_event.tgv_ts_lo = 0;
+      mesy_event.tgv_ts_mid = 0;
+      mesy_event.tgv_ts_hi = 0;
+      //std::cout << "tgv = " << mesytec_tgv_index << " scaler = " << mvlc_scaler_index << std::endl;
+      if(mesytec_tgv_index==4){
+         if(!(mesytec_tgv_data[0] & data_flags::tgv_data_ready_mask))
+         {
+            std::cout << "*** WARNING *** Got BAD TIMESTAMP from TGV (TGV NOT READY) *** WARNING ***" << std::endl;
+            for(int i=0; i<mesytec_tgv_index; ++i)
+               std::cout << std::dec << i << " : " << std::hex << std::showbase << mesytec_tgv_data[i] << std::endl;
+         }
+         else
+         {
+            //if(printit) std::cout << "TGV data is OK" << std::endl;
+            // get 3 centrum timestamp words from TGV data
+            mesy_event.tgv_ts_lo = (mesytec_tgv_data[1] &= data_flags::tgv_data_mask_lo);
+            mesy_event.tgv_ts_mid = (mesytec_tgv_data[2] &= data_flags::tgv_data_mask_lo);
+            mesy_event.tgv_ts_hi = (mesytec_tgv_data[3] &= data_flags::tgv_data_mask_lo);
+            //std::cout << event.tgv_ts_hi << " " << event.tgv_ts_mid << " " << event.tgv_ts_lo << std::endl;
+         }
+      }
+
+      // clear module data ready for next full readout
+      mod_data.clear();
+
+      reading_tgv=false;
+      reading_mvlc_scaler=false;
+      reading_mdpp=false;
+      reading_vmmr=false;
+
+      // in case callback function 'aborts' (output buffer full) and we have to keep the event for later
+      storing_last_complete_event=true;
+
+//               if(printit)
+//               {
+//                  event.ls(mesytec_setup);
+//               }
+      // call callback function
+      F(mesy_event,mesytec_setup);
+      ++mesy_event.event_counter;
+
+      storing_last_complete_event=false;// successful callback
+
+      // reset event after sending/encapsulating
+      mesy_event.clear();
+
+      // begin new readout cycle
+      mesytec_setup.readout.begin_readout();
+
+      ++total_number_events_parsed;
+   }
+
+      /**
+       Decode buffers encapsulated in MFM frames with frame revision id=1:
+           + buffers only contain module header and data words for modules which fire/produce data
+       */
+      template<typename CallbackFunction>
+      void read_event_in_buffer_v1(const uint8_t* _buf, size_t nbytes, CallbackFunction F)
+      {
+         assert(nbytes%4==0);
+
+         int words_to_read = nbytes/4;
+         buf_pos = const_cast<uint8_t*>(_buf);
+         event mesy_event;
+         mod_data.clear();
+         module *current_module;
+         while(words_to_read--)
+         {
+            auto next_word = read_data_word(buf_pos);
+
+            if(is_event_header(next_word))
+            {
+               // add previously read module to event
+               if(mod_data.module_id) mesy_event.add_module_data(mod_data);
+
+               // new module
+               current_module = &mesytec_setup.get_module(module_id(next_word));
+               auto firmware = current_module->firmware;
+               mod_data.set_header_word(next_word,firmware);
+
+               reading_mvlc_scaler = current_module->firmware == MVLC_SCALER;
+            }
+            else if(reading_mvlc_scaler)
+            {
+               mod_data.add_data(next_word);
+            }
+            else if(is_mdpp_data(next_word)||is_vmmr_data(next_word)) {
+               current_module->set_data_word(next_word);
+               if(current_module->firmware == VMMR)
+                  mod_data.add_data( current_module->get_data_type(), current_module->get_bus_number(), current_module->get_channel_number(),
+                                     current_module->get_channel_data(), next_word);
+               else
+                  mod_data.add_data( current_module->get_data_type(), current_module->get_channel_number(),
+                                     current_module->get_channel_data(), next_word);
+            }
+            buf_pos+=4;
+         }
+         // add last read module to event
+         if(mod_data.module_id) mesy_event.add_module_data(mod_data);
+
+         // read all data - call function
+         F(mesy_event,mesytec_setup);
+      }
+      /**
+       Decode buffers encapsulated in MFM frames, with frame revision id=0:
+          + buffers included 'End-of-Event' words (which could in actual fact be StackFrame headers etc.),
+            as well as module headers even for modules with no data
+       */
+      template<typename CallbackFunction>
+      void read_event_in_buffer_v0(const uint8_t* _buf, size_t nbytes, CallbackFunction F)
+      {
+         assert(nbytes%4==0);
+
+         int words_to_read = nbytes/4;
+         buf_pos = const_cast<uint8_t*>(_buf);
+         event mesy_event;
+
+         while(words_to_read--)
+         {
+            auto next_word = read_data_word(buf_pos);
+            if(is_event_header(next_word))
+            {
+               auto firmware = mesytec_setup.get_module(module_id(next_word)).firmware;
+               mod_data.set_header_word(next_word,firmware);
+               got_header = true;
+               reading_data = false;
+            }
+            else if(is_mdpp_data(next_word)) {
+               reading_data=true;
+               auto& mod = mesytec_setup.get_module(mod_data.module_id);
+               mod.set_data_word(next_word);
+               mod_data.add_data( mod.get_data_type(), mod.get_channel_number(), mod.get_channel_data(), next_word);
+            }
+            // due to the confusion between 'end of event' and 'frame header' words in revision 0,
+            // here we replace the original test 'if(is_end_of_event...' with 'if(is_end_of_event || is_frame_header...'
+            // which corresponds to the effective behaviour of the code at the time when revision 0
+            // frames were produced & written.
+            else if((got_header || reading_data) && (is_end_of_event(next_word) || is_frame_header(next_word))) // ignore 2nd, 3rd, ... EOE
+            {
+               got_header=false;
+               reading_data=false;
+               mod_data.event_counter = event_counter(next_word);
+               mod_data.eoe_word = next_word;
+               mesy_event.event_counter = mod_data.event_counter;
+               mesy_event.add_module_data(mod_data);
+            }
+            buf_pos+=4;
+         }
+         // read all data - call function
+         F(mesy_event,mesytec_setup);
+      }
    public:
       void initialise_readout()
       {
@@ -68,10 +234,24 @@ namespace mesytec
       }
 
       buffer_reader() = default;
+      /**
+         read and set up description of experimental configuration i.e. the VME crate
+
+         for definition of file format, see mesytec::experimental_setup::read_crate_map()
+
+         @param map_file full path to file containing definitions of modules in VME crate
+       */
       void read_crate_map(const std::string& map_file)
       {
          mesytec_setup.read_crate_map(map_file);
       }
+      /**
+         read and set up correspondence between electronics channels and detectors
+
+         for definition of file format, see mesytec::experimental_setup::read_detector_correspondence()
+
+         @param det_cor_file full file to path containing module/bus/channel/detector associations
+       */
       void read_detector_correspondence(const std::string& det_cor_file)
       {
          mesytec_setup.read_detector_correspondence(det_cor_file);
@@ -164,87 +344,33 @@ namespace mesytec
          }
       }
 
-      template<typename CallbackFunction>
-      void treat_complete_event(CallbackFunction F)
-   {
-      // the end of the readout of all modules is signalled by the END_READOUT dummy module
+      /**
+       Used with a raw mvme data stream in order to sort and collate different module data
+       i.e. in Narval receiver actor.
 
-      got_header=false;
-      //if(printit) std::cout << "readout complete" << std::endl;
+       When a complete event is ready the callback function F is called with the event and
+       the description of the setup as
+       arguments. Suitable signature for the callback function F is
 
-      // check TGV data
-      mesy_event.tgv_ts_lo = 0;
-      mesy_event.tgv_ts_mid = 0;
-      mesy_event.tgv_ts_hi = 0;
-      //std::cout << "tgv = " << mesytec_tgv_index << " scaler = " << mvlc_scaler_index << std::endl;
-      if(mesytec_tgv_index==4){
-         if(!(mesytec_tgv_data[0] & data_flags::tgv_data_ready_mask))
-         {
-            std::cout << "*** WARNING *** Got BAD TIMESTAMP from TGV (TGV NOT READY) *** WARNING ***" << std::endl;
-            for(int i=0; i<mesytec_tgv_index; ++i)
-               std::cout << std::dec << i << " : " << std::hex << std::showbase << mesytec_tgv_data[i] << std::endl;
-         }
-         else
-         {
-            //if(printit) std::cout << "TGV data is OK" << std::endl;
-            // get 3 centrum timestamp words from TGV data
-            mesy_event.tgv_ts_lo = (mesytec_tgv_data[1] &= data_flags::tgv_data_mask_lo);
-            mesy_event.tgv_ts_mid = (mesytec_tgv_data[2] &= data_flags::tgv_data_mask_lo);
-            mesy_event.tgv_ts_hi = (mesytec_tgv_data[3] &= data_flags::tgv_data_mask_lo);
-            //std::cout << event.tgv_ts_hi << " " << event.tgv_ts_mid << " " << event.tgv_ts_lo << std::endl;
-         }
-      }
+       ~~~~{.cpp}
+          void callback(mesytec::event&, mesytec::experimental_setup&);
+       ~~~~
 
-      // clear module data ready for next full readout
-      mod_data.clear();
+       (it can also of course be implemented with a lambda capture or a functor object).
 
-      reading_tgv=false;
-      reading_mvlc_scaler=false;
-      reading_mdpp=false;
-      reading_vmmr=false;
+       Straight after the call, the event will be deleted, so don't bother keeping a copy of a
+       reference to it, any data must be treated/copied/moved in the callback function.
 
-      // in case callback function 'aborts' (output buffer full) and we have to keep the event for later
-      storing_last_complete_event=true;
+       Returns the number of complete collated events were parsed from the buffer, i.e. the number of times
+       the callback function was called without throwing an exception.
 
-//               if(printit)
-//               {
-//                  event.ls(mesytec_setup);
-//               }
-      // call callback function
-      F(mesy_event,mesytec_setup);
-      ++mesy_event.event_counter;
-
-      storing_last_complete_event=false;// successful callback
-
-      // reset event after sending/encapsulating
-      mesy_event.clear();
-
-      // begin new readout cycle
-      mesytec_setup.readout.begin_readout();
-
-      ++total_number_events_parsed;
-   }
-
+       @param _buf pointer to the beginning of the buffer
+       @param nbytes size of buffer in bytes
+       @param F function to call each time a complete event is ready
+       */
       template<typename CallbackFunction>
       uint32_t read_buffer_collate_events(const uint8_t* _buf, size_t nbytes, CallbackFunction F)
       {
-         // To be used with a raw mvme data stream in order to sort and collate different module data
-         // i.e. in Narval receiver actor. The data may look like this:
-         //
-         // Read nbytes bytes from the buffer [must be a multiple of 4, i.e. only 4-byte words]
-         //
-         // Decode Mesytec data in the buffer, collate all module data.
-         // When a complete event is ready the callback function is called with the event as
-         // argument. Suitable signature for callback could be
-         //
-         //    void callback((mesytec::event& Event);
-         //
-         // Straight after the call, the event will be deleted, so don't bother keeping a copy of a
-         // reference to it, any data must be copied/moved in the callback function.
-         //
-         // Returns the number of complete collated events were parsed from the buffer, i.e. the number of times
-         // the callback function was called without throwing an exception.
-
 
          assert(nbytes%4==0); // the buffer should only contain 32-bit words
          //dump_data_stream(_buf,nbytes);
@@ -543,15 +669,30 @@ namespace mesytec
          }
       }
 
+      /**
+       @param _buf pointer to the beginning of the buffer
+       @param nbytes size of buffer in bytes
+       @param F function to call when parsed event is ready
+       @param mfm_frame_rev revision number of the MFM frame [default: 1]
+
+       To be used to read one (and only one) event contained in the buffer extracted from an MFM data frame.
+
+       When a complete event is ready the callback function F is called with the event and
+       the description of the setup as
+       arguments. Suitable signature for the callback function F is
+
+       ~~~~{.cpp}
+          void callback(mesytec::event&, mesytec::experimental_setup&);
+       ~~~~
+
+       (it can also of course be implemented with a lambda capture or a functor object).
+
+       Straight after the call, the event will be deleted, so don't bother keeping a copy of a
+       reference to it, any data must be treated/copied/moved in the callback function.
+*/
       template<typename CallbackFunction>
       void read_event_in_buffer(const uint8_t* _buf, size_t nbytes, CallbackFunction F, u8 mfm_frame_rev = 1)
       {
-         // Decode buffers encapsulated in MFM frames, based on the frame revision id
-         //
-         // rev. 0: buffers included 'End-of-Event' words (which could in actual fact be StackFrame headers etc.),
-         //         as well as module headers even for modules with no data
-         //
-         // rev. 1: buffers only contain module header and data words for modules which fire/produce data
          switch(mfm_frame_rev)
          {
             case 0:
@@ -565,127 +706,8 @@ namespace mesytec
          }
       }
 
-      template<typename CallbackFunction>
-      void read_event_in_buffer_v1(const uint8_t* _buf, size_t nbytes, CallbackFunction F)
-      {
-         // To be used to read one (and only one) collated event contained in the buffer encapsulated in MFM frames.
-         //
-         // This is for MFM frames with revision number 1.
-         //
-         // Read nbytes bytes from the buffer and call the callback function with the event as
-         // argument. Callback signature must be
-         //
-         //    void callback((mesytec::mdpp::event& Event);
-         //
-         // Straight after the call, the event will be deleted, so don't bother keeping a copy of a
-         // reference to it, any data must be copied/moved in the callback function.
-         //
-         // Returns the number of complete collated events were parsed from the buffer, i.e. the number of times
-         // the callback function was called without throwing an exception.
-
-         assert(nbytes%4==0);
-
-         int words_to_read = nbytes/4;
-         buf_pos = const_cast<uint8_t*>(_buf);
-         event mesy_event;
-         mod_data.clear();
-         module *current_module;
-         while(words_to_read--)
-         {
-            auto next_word = read_data_word(buf_pos);
-
-            if(is_event_header(next_word))
-            {
-               // add previously read module to event
-               if(mod_data.module_id) mesy_event.add_module_data(mod_data);
-
-               // new module
-               current_module = &mesytec_setup.get_module(module_id(next_word));
-               auto firmware = current_module->firmware;
-               mod_data.set_header_word(next_word,firmware);
-
-               reading_mvlc_scaler = current_module->firmware == MVLC_SCALER;
-            }
-            else if(reading_mvlc_scaler)
-            {
-               mod_data.add_data(next_word);
-            }
-            else if(is_mdpp_data(next_word)||is_vmmr_data(next_word)) {
-               current_module->set_data_word(next_word);
-               if(current_module->firmware == VMMR)
-                  mod_data.add_data( current_module->get_data_type(), current_module->bus_number(), current_module->channel_number(),
-                                     current_module->channel_data(), next_word);
-               else
-                  mod_data.add_data( current_module->get_data_type(), current_module->channel_number(),
-                                     current_module->channel_data(), next_word);
-            }
-            buf_pos+=4;
-         }
-         // add last read module to event
-         if(mod_data.module_id) mesy_event.add_module_data(mod_data);
-
-         // read all data - call function
-         F(mesy_event,mesytec_setup);
-      }
-      template<typename CallbackFunction>
-      void read_event_in_buffer_v0(const uint8_t* _buf, size_t nbytes, CallbackFunction F)
-      {
-         // To be used to read one (and only one) collated event contained in the buffer,
-         // for example to read data encapsulated in MFM frames.
-         //
-         // This is for MFM frames with revision number 0.
-         //
-         // Read nbytes bytes from the buffer and call the callback function with the event as
-         // argument. Suitable signature for callback could be
-         //
-         //    void callback((mesytec::mdpp::event& Event);
-         //
-         // Straight after the call, the event will be deleted, so don't bother keeping a copy of a
-         // reference to it, any data must be copied/moved in the callback function.
-         //
-         // Returns the number of complete collated events were parsed from the buffer, i.e. the number of times
-         // the callback function was called without throwing an exception.
-
-         assert(nbytes%4==0);
-
-         int words_to_read = nbytes/4;
-         buf_pos = const_cast<uint8_t*>(_buf);
-         event mesy_event;
-
-         while(words_to_read--)
-         {
-            auto next_word = read_data_word(buf_pos);
-            if(is_event_header(next_word))
-            {
-               auto firmware = mesytec_setup.get_module(module_id(next_word)).firmware;
-               mod_data.set_header_word(next_word,firmware);
-               got_header = true;
-               reading_data = false;
-            }
-            else if(is_mdpp_data(next_word)) {
-               reading_data=true;
-               auto& mod = mesytec_setup.get_module(mod_data.module_id);
-               mod.set_data_word(next_word);
-               mod_data.add_data( mod.get_data_type(), mod.channel_number(), mod.channel_data(), next_word);
-            }
-            // due to the confusion between 'end of event' and 'frame header' words in revision 0,
-            // here we replace the original test 'if(is_end_of_event...' with 'if(is_end_of_event || is_frame_header...'
-            // which corresponds to the effective behaviour of the code at the time when revision 0
-            // frames were produced & written.
-            else if((got_header || reading_data) && (is_end_of_event(next_word) || is_frame_header(next_word))) // ignore 2nd, 3rd, ... EOE
-            {
-               got_header=false;
-               reading_data=false;
-               mod_data.event_counter = event_counter(next_word);
-               mod_data.eoe_word = next_word;
-               mesy_event.event_counter = mod_data.event_counter;
-               mesy_event.add_module_data(mod_data);
-            }
-            buf_pos+=4;
-         }
-         // read all data - call function
-         F(mesy_event,mesytec_setup);
-      }
+      uint8_t* get_buffer_position() const { return buf_pos; }
+      size_t get_remaining_bytes_in_buffer() const { return bytes_left_in_buffer; }
       uint32_t get_total_events_parsed() const { return total_number_events_parsed; }
       bool is_storing_last_complete_event() const { return storing_last_complete_event; }
       template<typename CallbackFunction>
@@ -701,8 +723,6 @@ namespace mesytec
          // advance position in buffer
          buf_pos+=4;
       }
-      uint8_t* get_buffer_position() const { return buf_pos; }
-      size_t get_remaining_bytes_in_buffer() const { return bytes_left_in_buffer; }
    };
 }
 #endif // MESYTEC_BUFFER_READER_H

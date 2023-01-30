@@ -1,5 +1,5 @@
 # mesytec_data
-## Software for parsing Mesytec data from MDPP and VMMR modules
+## mesytec data parsing library
 
 ### Build and install
 
@@ -60,4 +60,4 @@ or `crate-address, bus_number, channel_number, name` (VMMR modules)
 
 ### Data analysis
 
-Buffers of data can be parsed with class `mesytec::buffer_reader`. See tests/example_analysis.cpp.
+Buffers of data can be parsed with class `mesytec::buffer_reader`. See example_analysis.cpp.

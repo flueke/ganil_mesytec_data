@@ -15,6 +15,10 @@ namespace mesytec
 {
    const uint16_t mfm_frame_type = 0x4adf;
 
+   /**
+      @class channel_data
+      @brief a single item of data read from a module, corresponding to a given bus number, channel number and data type
+    */
    class channel_data
    {
       uint32_t data_word;
@@ -49,13 +53,43 @@ namespace mesytec
          buf.push_back(data_word);
       }
 
+      /**
+         @return the full 32-bit data word read from the datastream corresponding to this data item
+       */
       uint32_t get_data_word() const { return data_word; }
+      /**
+         @return the actual data (adc, qdc, etc.) associated with this data item
+       */
       uint16_t get_data() const { return data; }
+      /**
+         @return the bus index associated with this data item
+       */
       uint8_t get_bus_number() const { return bus_number; }
+      /**
+         @return the channel/subaddress associated with this data item
+       */
       uint8_t get_channel_number() const { return channel; }
+      /**
+         @return the type of data associated with this data item
+       */
       module::datatype_t get_data_type() const { return data_type; }
    };
 
+   /**
+      @class module_data
+      @brief collects together all channel_data read from a single module in one event
+
+      Iterating over the data from the module is simple to do:
+      ~~~~{.cpp}
+      void read_module_data(mesytec::module_data& mod)
+      {
+          for(auto& chan : mod.get_channel_data())
+          {
+             \// work with the individual channel_data objects
+          }
+      }
+      ~~~~
+   */
    class module_data
    {
       friend class buffer_reader;
@@ -67,7 +101,13 @@ namespace mesytec
       uint16_t data_words; // number of data items + 1 EOE
       uint8_t module_id{UNKNOWN};
    public:
+      /**
+         @return HW address of module in VME crate
+       */
       uint8_t get_module_id() const { return module_id; }
+      /**
+         @return reference to vector containing all data from channels of this module (channel_data)
+       */
       const std::vector<channel_data> & get_channel_data() const { return data; }
       void clear()
       {
@@ -175,6 +215,27 @@ namespace mesytec
       }
    };
 
+   /**
+      @class event
+      @brief collection of data read out from the VME crate
+
+      An event is a collection of module_data objects, each of which contains the data read from each module,
+      in the form of a collection of channel_data objects.
+
+      Iterating over the data of the event is simple to do:
+      ~~~~{.cpp}
+      void read_event(mesytec::event& ev)
+      {
+         for(auto& mod : ev.get_module_data())
+         {
+            for(auto& chan : mod.get_channel_data())
+            {
+               \// work with the individual channel_data objects
+            }
+         }
+      }
+      ~~~~
+    */
    class event
    {
       friend class buffer_reader;
@@ -183,9 +244,21 @@ namespace mesytec
       uint32_t event_counter;
       uint16_t tgv_ts_lo,tgv_ts_mid,tgv_ts_hi;
    public:
+      /**
+         @return the least significant 16-bit word of the TGV timestamp data (bits 0-15)
+       */
       uint16_t get_tgv_ts_lo() const { return tgv_ts_lo; }
+      /**
+         @return the middle 16-bit word of the TGV timestamp data (bits 16-31)
+       */
       uint16_t get_tgv_ts_mid() const { return tgv_ts_mid; }
+      /**
+         @return the most significant 16-bit word of the TGV timestamp data (bits 32-47)
+       */
       uint16_t get_tgv_ts_hi() const { return tgv_ts_hi; }
+      /**
+         @return 32-bit mesytec event counter
+       */
       uint32_t get_event_counter() const { return event_counter; }
       event()
       {
@@ -197,6 +270,9 @@ namespace mesytec
       {
          modules.clear();
       }
+      /**
+        @return reference to the collection of module_data objects
+       */
       const std::vector<module_data>& get_module_data() const { return modules; }
 
       void add_module_data(module_data& d){ modules.push_back(std::move(d)); }
