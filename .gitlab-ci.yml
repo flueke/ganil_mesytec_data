@@ -1,4 +1,4 @@
-image: gitlab-registry.in2p3.fr/tkn/docker_tkn:ubuntu20
+image: ubuntu
 
 stages:
     - build
@@ -6,6 +6,9 @@ stages:
 pages:
   stage: build
   script:
+    - apt-get update -qq
+    - ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+    - apt-get -y install graphviz doxygen
     - dir="public"
     - echo "Deploy to $dir"
     - mkdir -p $dir
