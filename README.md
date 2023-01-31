@@ -1,6 +1,8 @@
 # mesytec_data
 ## mesytec data parsing library
 
+Website and class reference documentation: https://mesytec-ganil.pages.in2p3.fr/mesytec_data/
+
 ### Build and install
 
 ~~~~
