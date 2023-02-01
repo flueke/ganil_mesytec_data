@@ -71,6 +71,6 @@ Run the `mesytec_receiver_mfm_transmitter` executable with suitable arguments in
 from the mesytec `mvme` software into MFM frames which are in turn published on a ZMQ PUB socket.
 
 #### Narval receiver
-`libzmq_narval_receiver.so' is a Narval actor which can receive the MFM frames produced by `mesytec_receiver_mfm_transmitter`
+`libzmq_narval_receiver.so` is a Narval actor which can receive the MFM frames produced by `mesytec_receiver_mfm_transmitter`
 in order to inject them into a Narval dataflow. Give the specification of the ZMQ port (`tcp://hostname:port`) in the `algo_path`
 option of the actor.
