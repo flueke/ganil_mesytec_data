@@ -10,6 +10,7 @@
 #include "mesytec_experimental_setup.h"
 
 #define MESYTEC_DATA_NO_MDPP_NAMESPACE
+#define MESYTEC_DATA_NO_PUBLIC_MEMBERS
 
 namespace mesytec
 {

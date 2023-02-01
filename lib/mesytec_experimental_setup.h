@@ -115,30 +115,30 @@ namespace mesytec
 
       experimental_setup()=default;
       experimental_setup(const experimental_setup&)=delete;
-      experimental_setup(std::vector<module> &&modules)
-      {
-         /// define crate map with a vector of module constructors
-         /// e.g.
-         ///
-         ///         mesytec::experimental_setup setup({
-         ///            {"MDPP-16", 0x0, 16, mesytec::SCP},
-         ///            {"MDPP-32", 0x10, 32, mesytec::SCP}
-         ///         });
-         for(auto& mod : modules) {
-            if(mod.firmware == START_READOUT)
-               readout.set_event_start_marker(mod.id);
-            else if(mod.firmware == END_READOUT)
-               readout.set_event_end_marker(mod.id);
-            else
-            {
-               crate_map.add_id(mod.id);
-            }
-         }
-         for(auto& mod : modules) {
-            if(mod.firmware != START_READOUT && mod.firmware != END_READOUT)
-               crate_map.add_object(mod.id,mod);
-         }
-      }
+//      experimental_setup(std::vector<module> &&modules)
+//      {
+//         /// define crate map with a vector of module constructors
+//         /// e.g.
+//         ///
+//         ///         mesytec::experimental_setup setup({
+//         ///            {"MDPP-16", 0x0, 16, mesytec::SCP},
+//         ///            {"MDPP-32", 0x10, 32, mesytec::SCP}
+//         ///         });
+//         for(auto& mod : modules) {
+//            if(mod.firmware == START_READOUT)
+//               readout.set_event_start_marker(mod.id);
+//            else if(mod.firmware == END_READOUT)
+//               readout.set_event_end_marker(mod.id);
+//            else
+//            {
+//               crate_map.add_id(mod.id);
+//            }
+//         }
+//         for(auto& mod : modules) {
+//            if(mod.firmware != START_READOUT && mod.firmware != END_READOUT)
+//               crate_map.add_object(mod.id,mod);
+//         }
+//      }
       void read_crate_map(const std::string& mapfile);
       void read_detector_correspondence(const std::string& mapfile);
 

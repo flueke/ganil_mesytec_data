@@ -10,6 +10,9 @@
 #include <ctime>
 #include <array>
 
+#define MESYTEC_DATA_BUFFER_READER_NO_DEFINE_SETUP
+#define MESYTEC_DATA_BUFFER_READER_CALLBACK_WITH_EVENT_AND_SETUP
+
 namespace mesytec
 {
    /**

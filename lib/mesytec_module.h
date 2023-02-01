@@ -427,9 +427,9 @@ public:
       int get_number_of_buses() const { return bus_map.size(); }
 
       module() = default;
-      module(const module&m)=default;
+      module(const module&m)=delete;
       module(module&&)=default;
-      module& operator=(const module&)=default;
+      module& operator=(const module&)=delete;
       module& operator=(module&&)=default;
 
       /**
@@ -587,6 +587,8 @@ public:
             return data_type_aliases["qdc_short"];
          case QDC_long:
             return data_type_aliases["qdc_long"];
+         case unknown:
+            break;
          }
          return "unknown";
       }

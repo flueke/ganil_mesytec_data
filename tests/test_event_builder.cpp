@@ -3,9 +3,9 @@
 
 int main()
 {
-   mesytec::experimental_setup mesytec_setup({
+   mesytec::experimental_setup mesytec_setup/*({
                      {"CSI-01", 0x3, 32, mesytec::MDPP_QDC}
-   });
+   })*/;
    mesytec_setup.set_detector_module_channel(0x3,0,"CSI_0601");
    mesytec_setup.set_detector_module_channel(0x3,1,"CSI_0602");
    mesytec_setup.set_detector_module_channel(0x3,2,"CSI_0603");
