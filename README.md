@@ -63,3 +63,14 @@ or `crate-address, bus_number, channel_number, name` (VMMR modules)
 ### Data analysis
 
 Buffers of data can be parsed with class `mesytec::buffer_reader`. See example_analysis.cpp.
+
+### GANIL Acquisition Interface
+
+#### MFM encapsulation
+Run the `mesytec_receiver_mfm_transmitter` executable with suitable arguments in order to encapsulate data received by ZMQ
+from the mesytec `mvme` software into MFM frames which are in turn published on a ZMQ PUB socket.
+
+#### Narval receiver
+`libzmq_narval_receiver.so' is a Narval actor which can receive the MFM frames produced by `mesytec_receiver_mfm_transmitter`
+in order to inject them into a Narval dataflow. Give the specification of the ZMQ port (`tcp://hostname:port`) in the `algo_path`
+option of the actor.
