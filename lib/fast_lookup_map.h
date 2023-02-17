@@ -236,15 +236,30 @@ public:
    {
       return maxindex;
    }
+public:
 #ifdef FLM_USE_RAW_POINTERS
-   bool has_object(Index id) const { return objects[id]!=nullptr; }
-   Object& get_object(Index id) { return *objects[id]; }
-   const Object& get_object(Index id) const { return *objects[id]; }
+   bool has_object(Index id) const { return id<=maxindex && objects[id]!=nullptr; }
 #else
-   bool has_object(Index id) const { return (bool)objects[id]; }
-   Object& get_object(Index id) { return *(objects[id].get()); }
-   const Object& get_object(Index id) const { return *(objects[id].get()); }
+   bool has_object(Index id) const { return id<=maxindex && (bool)objects[id]; }
 #endif
+   /// \warning throws std::runtime_error if object with given index not in map
+   /// \returns reference to object with given index
+   /// \param id index of required object
+   Object& get_object(Index id)
+   {
+      if(!has_object(id))
+         throw std::runtime_error("no object in map with requested index " + std::to_string(id) + " [maxindex=" + std::to_string(maxindex));
+      return *objects[id];
+   }
+   /// \warning throws std::runtime_error if object with given index not in map
+   /// \returns const reference to object with given index
+   /// \param id index of required object
+   const Object& get_object(Index id) const
+   {
+      if(!has_object(id))
+         throw std::runtime_error("no object in map with requested index " + std::to_string(id) + " [maxindex=" + std::to_string(maxindex));
+      return *objects[id];
+   }
    Object& operator[](Index id) { return get_object(id); }
    const Object& operator[](Index id) const { return get_object(id); }
 };
