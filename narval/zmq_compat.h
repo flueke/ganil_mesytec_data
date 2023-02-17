@@ -5,9 +5,10 @@
 
 #include <zmq.hpp>
 
-// From CPPZMQ_VERSION 4.7.0 onwards:
+// From CPPZMQ_VERSION 4.7.1 onwards:
 //    warning: ‘void zmq::detail::socket_base::setsockopt(int, const void*, size_t)’ is deprecated: from 4.7.0, use `set` taking option from zmq::sockopt
-#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4,7,0)
+// N.B. wrning says "from 4.7.0...", but socket_base::set is not defined in 4.7.0!!!
+#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4,7,1)
 #define ZMQ_SETSOCKOPT_DEPRECATED
 #endif
 
