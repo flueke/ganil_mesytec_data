@@ -43,21 +43,20 @@ void process_start (struct my_struct *,
    }
 
    int timeout=500;//milliseconds
-#if defined (ZMQ_CPP14)
-   pub->setsockopt(ZMQ_RCVTIMEO, &timeout, sizeof(int));
-#else
+#ifdef ZMQ_SETSOCKOPT_DEPRECATED
    pub->set(zmq::sockopt::rcvtimeo,timeout);
+#else
+   pub->setsockopt(ZMQ_RCVTIMEO, &timeout, sizeof(int));
 #endif
    try {
       pub->connect(zmq_port.c_str());
    } catch (zmq::error_t &e) {
       std::cout << "[ZMQ] : ERROR" << "process_start: failed to bind ZeroMQ endpoint " << zmq_port << ": " << e.what () << std::endl;
    }
-#if defined (ZMQ_CPP14)
-  pub->setsockopt(ZMQ_SUBSCRIBE, "", 0);
-#else
+#ifdef ZMQ_SETSOCKOPT_DEPRECATED
    pub->set(zmq::sockopt::subscribe,"");
-
+#else
+   pub->setsockopt(ZMQ_SUBSCRIBE, "", 0);
 #endif
    std::cout << "[ZMQ] : SUBSCRIBED to ZMQ PUBlisher " << zmq_port << std::endl;
 

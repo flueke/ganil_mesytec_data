@@ -1,7 +1,7 @@
 #include "mesytec_buffer_reader.h"
 #include "mesytec_experimental_setup.h"
 #include <string>
-#include "zmq.hpp"
+#include "../narval/zmq_compat.h"
 #include <ctime>
 #include <thread>
 #include <chrono>
@@ -23,7 +23,11 @@ struct mesytec_mfm_converter
       try {
          pub=new zmq::socket_t(context, ZMQ_PUB);
          int linger = 0;
+#ifdef ZMQ_SETSOCKOPT_DEPRECATED
+         pub->set(zmq::sockopt::linger, linger);
+#else
          pub->setsockopt(ZMQ_LINGER, &linger, sizeof(linger));   // linger equal to 0 for a fast socket shutdown
+#endif
       } catch (zmq::error_t &e) {
          std::cout << "ERROR: " << "process_initialise: failed to start " << spytype << " event spy: " << e.what () << std::endl;
       }
@@ -80,7 +84,11 @@ struct mesytec_mfm_converter
       // Now send frame on ZMQ socket
       zmq::message_t msg(mfmeventsize);
       memcpy(msg.data(), mfmevent, mfmeventsize);
+#ifdef ZMQ_USE_SEND_FLAGS
+      pub->send(msg,zmq::send_flags::none);
+#else
       pub->send(msg);
+#endif
    }
 };
 
@@ -155,14 +163,22 @@ int main(int argc, char *argv[])
    }
 
    int timeout=100;//milliseconds
+#ifdef ZMQ_SETSOCKOPT_DEPRECATED
+   pub->set(zmq::sockopt::rcvtimeo,timeout);
+#else
    pub->setsockopt(ZMQ_RCVTIMEO, &timeout, sizeof(int));
+#endif
    try {
       pub->connect(zmq_port.c_str());
    } catch (zmq::error_t &e) {
       std::cout << "[MESYTEC] : ERROR" << "process_start: failed to bind ZeroMQ endpoint " << zmq_port << ": " << e.what () << std::endl;
    }
    std::cout << "[MESYTEC] : Connected to MESYTECSpy " << zmq_port << std::endl;
+#ifdef ZMQ_SETSOCKOPT_DEPRECATED
+   pub->set(zmq::sockopt::subscribe,"");
+#else
    pub->setsockopt(ZMQ_SUBSCRIBE, "", 0);
+#endif
 
    time_t current_time;
    time(&current_time);
@@ -180,7 +196,7 @@ int main(int argc, char *argv[])
    while(1)
    {
       try{
-#if defined (ZMQ_CPP14)
+#ifdef ZMQ_USE_RECV_WITH_REFERENCE
          if(!pub->recv(event))
 #else
          if(!pub->recv(&event))

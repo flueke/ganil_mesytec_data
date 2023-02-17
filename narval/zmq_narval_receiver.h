@@ -1,7 +1,7 @@
 #ifndef ZMQ_NARVAL_RECEIVER_H
 #define ZMQ_NARVAL_RECEIVER_H
 
-#include "zmq.hpp"
+#include "zmq_compat.h"
 #include <ctime>
 
 static int next_id = 0;

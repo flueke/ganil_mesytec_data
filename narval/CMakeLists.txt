@@ -12,5 +12,5 @@ if(ZMQ_FOUND)
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
-    install(FILES mesytec_narval_receiver.h zmq_narval_receiver.h DESTINATION ${CMAKE_INSTALL_PKGINCDIR})
+    install(FILES mesytec_narval_receiver.h zmq_narval_receiver.h zmq_compat.h DESTINATION ${CMAKE_INSTALL_PKGINCDIR})
 endif(ZMQ_FOUND)

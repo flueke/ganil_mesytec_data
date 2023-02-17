@@ -1,5 +1,5 @@
 #include "mesytec_buffer_reader.h"
-#include "zmq.hpp"
+#include "../narval/zmq_compat.h"
 #include <chrono>
 #include <thread>
 #include <ctime>
@@ -21,14 +21,22 @@ int main()
    }
 
    int timeout=100;//milliseconds
+#ifdef ZMQ_SETSOCKOPT_DEPRECATED
+   pub->set(zmq::sockopt::rcvtimeo,timeout);
+#else
    pub->setsockopt(ZMQ_RCVTIMEO, &timeout, sizeof(int));
+#endif
    try {
       pub->connect(zmq_port.c_str());
    } catch (zmq::error_t &e) {
       std::cout << "[MESYTEC] : ERROR" << "process_start: failed to bind ZeroMQ endpoint " << zmq_port << ": " << e.what () << std::endl;
    }
    std::cout << "[MESYTEC] : Connected to MESYTECSpy " << zmq_port << std::endl;
+#ifdef ZMQ_SETSOCKOPT_DEPRECATED
+   pub->set(zmq::sockopt::subscribe,"");
+#else
    pub->setsockopt(ZMQ_SUBSCRIBE, "", 0);
+#endif
 
    zmq::message_t event;
 

@@ -1,7 +1,7 @@
 #ifndef MESYTEC_NARVAL_RECEIVER_H
 #define MESYTEC_NARVAL_RECEIVER_H
 
-#include "zmq.hpp"
+#include "zmq_compat.h"
 #include "mesytec_buffer_reader.h"
 #include <ctime>
 

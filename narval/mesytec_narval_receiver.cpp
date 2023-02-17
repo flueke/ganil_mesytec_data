@@ -58,15 +58,22 @@ void process_start (struct my_struct *,
    }
 
    int timeout=100;//milliseconds
+#ifdef ZMQ_SETSOCKOPT_DEPRECATED
+   pub->set(zmq::sockopt::rcvtimeo,timeout);
+#else
    pub->setsockopt(ZMQ_RCVTIMEO, &timeout, sizeof(int));
+#endif
    try {
       pub->connect(zmq_port.c_str());
    } catch (zmq::error_t &e) {
       std::cout << "[MESYTEC] : ERROR" << "process_start: failed to bind ZeroMQ endpoint " << zmq_port << ": " << e.what () << std::endl;
    }
    std::cout << "[MESYTEC] : Connected to MESYTECSpy " << zmq_port << std::endl;
+#ifdef ZMQ_SETSOCKOPT_DEPRECATED
+   pub->set(zmq::sockopt::subscribe,"");
+#else
    pub->setsockopt(ZMQ_SUBSCRIBE, "", 0);
-
+#endif
    time(&current_time);
    struct tm * timeinfo = localtime (&current_time);
    printf ("[MESYTEC] : MESYTEC-receiver beginning at: %s", asctime(timeinfo));
@@ -138,7 +145,7 @@ void process_block (struct my_struct *,
    while( iterations-- )
    {
       try{
-#if defined (ZMQ_CPP14)
+#ifdef ZMQ_USE_RECV_WITH_REFERENCE
          if(!pub->recv(event))
 #else
          if(!pub->recv(&event))
