@@ -42,7 +42,7 @@ int main()
 
    while(1)
    {
-#if defined (ZMQ_CPP14)
+#ifdef ZMQ_USE_RECV_WITH_REFERENCE
       if(pub->recv(event))
 #else
       if(pub->recv(&event))

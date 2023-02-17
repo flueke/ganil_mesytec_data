@@ -80,7 +80,7 @@ void process_block (struct my_struct *,
    {
       // get first event from ZMQ
       try{
-#if defined (ZMQ_CPP14)
+#ifdef ZMQ_USE_RECV_WITH_REFERENCE
             if(!pub->recv(event))
 #else
             if(!pub->recv(&event))
@@ -113,7 +113,7 @@ void process_block (struct my_struct *,
 
       // get next event from ZMQ
       try{
-#ifdef ZMQ_CPP11
+#ifdef ZMQ_USE_RECV_WITH_REFERENCE
          if(!pub->recv(event))
 #else
          if(!pub->recv(&event))
