@@ -173,3 +173,12 @@ namespace mesytec
    }
 
 }
+
+/**
+ \example test_event_builder.cpp
+ 
+ Example of use of mesytec::experimental_setup class to describe a VME crate.
+ 
+ Also demonstrates how mesytec::event and mesytec::module_data are used
+ to parse data from the Mesytec DAQ.
+ */
