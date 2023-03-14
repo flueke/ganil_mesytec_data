@@ -3,7 +3,7 @@
 
 #include "mesytec_module.h"
 
-#define FLM_USE_RAW_POINTERS
+// #define FLM_USE_RAW_POINTERS
 
 #include "fast_lookup_map.h"
 
@@ -25,6 +25,8 @@ namespace mesytec
       experimental_setup* exp_setup;
       uint8_t event_start_marker;
       uint8_t event_end_marker;
+      bool _reading_module;
+      bool _dummy_module;
 
    public:
       /**
@@ -38,10 +40,10 @@ namespace mesytec
          waiting_for_event_start,
          //! readout in progress
          in_event_readout,
+         //! just read end cycle marker, waiting for EOE
+         awaiting_eoe_for_end_readout,
          //! readout terminated
-         finished_readout,
-         //! bad state - new event begins during readout cycle
-         start_event_found_in_readout_cycle
+         finished_readout
       } readout_state;
       /**
          @param e dummy module HW address read from crate map file for `START_READOUT`
@@ -57,6 +59,8 @@ namespace mesytec
       void begin_readout()
       {
          readout_state=readout_state_t::waiting_for_event_start;
+         _reading_module=false;
+         _dummy_module=false;
       }
       /**
          @return true if still in initial state, i.e. waiting to encounter `START_READOUT` dummy module in data stream
@@ -65,13 +69,14 @@ namespace mesytec
       /**
          @return true if readout cycle is in progress
        */
-      bool in_readout_cycle() const { return  readout_state == readout_state_t::in_event_readout; }
+      bool in_readout_cycle() const { return  (readout_state == readout_state_t::in_event_readout)
+               || (readout_state == readout_state_t::awaiting_eoe_for_end_readout); }
       /**
          force the state to be that of readout cycle in progress
        */
       void force_state_in_readout_cycle() { readout_state = readout_state_t::in_event_readout; }
       /**
-         @return true when readout cycle is completed (i.e. after reading `END_READOUT` dummy module from data stream)
+         @return true when readout cycle is completed (i.e. after reading `END_READOUT` dummy module + EOE from data stream)
        */
       bool readout_complete() const { return  readout_state == readout_state_t::finished_readout; }
       /**
@@ -79,6 +84,17 @@ namespace mesytec
        */
       readout_state_t get_readout_state() const { return readout_state; }
       inline bool is_next_module(uint8_t id);
+      bool reading_module() const { return _reading_module; }
+      bool dummy_module() const { return _dummy_module; }
+      void module_end_of_event() {
+         _reading_module=false;
+         _dummy_module=false;
+         if(readout_state == readout_state_t::awaiting_eoe_for_end_readout)
+         {
+            // we just read EOE for dummy 'end readout' module. readout is complete.
+            readout_state = readout_state_t::finished_readout;
+         }
+      }
       /**
          @brief initialise readout cycle handler for given experimental setup
          @param s pointer to experimental setup description
@@ -115,30 +131,7 @@ namespace mesytec
 
       experimental_setup()=default;
       experimental_setup(const experimental_setup&)=delete;
-//      experimental_setup(std::vector<module> &&modules)
-//      {
-//         /// define crate map with a vector of module constructors
-//         /// e.g.
-//         ///
-//         ///         mesytec::experimental_setup setup({
-//         ///            {"MDPP-16", 0x0, 16, mesytec::SCP},
-//         ///            {"MDPP-32", 0x10, 32, mesytec::SCP}
-//         ///         });
-//         for(auto& mod : modules) {
-//            if(mod.firmware == START_READOUT)
-//               readout.set_event_start_marker(mod.id);
-//            else if(mod.firmware == END_READOUT)
-//               readout.set_event_end_marker(mod.id);
-//            else
-//            {
-//               crate_map.add_id(mod.id);
-//            }
-//         }
-//         for(auto& mod : modules) {
-//            if(mod.firmware != START_READOUT && mod.firmware != END_READOUT)
-//               crate_map.add_object(mod.id,mod);
-//         }
-//      }
+
       void read_crate_map(const std::string& mapfile);
       void read_detector_correspondence(const std::string& mapfile);
 
@@ -227,40 +220,36 @@ namespace mesytec
 
       check sequence of readout cycle given HW address of next module in data stream:
          + if we are not in a readout cycle, do nothing until start of event marker `START_READOUT` is found
-            - returns false
-         + if we are in a readout cycle and read the end of event marker `END_READOUT`, go to cycle finished state and return false
-         + if we are in a readout cycle and read another start of event marker `START_READOUT`, goto bad state
-            - returns false
+            - returns true
+         + if we are in a readout cycle and read the end of event marker `END_READOUT`, go to cycle finished state
+         as soon as next EOE is read, and return true
          + if we are in a readout cycle return true or false depending on whether module id corresponds to a known module which is part of the setup
 
+      After reading id=`START_READOUT` or id=`END_READOUT` dummy_module() returns true.
     */
    bool setup_readout::is_next_module(uint8_t id)
    {
       // if we are not in a readout cycle, do nothing until start of event marker is found
       if(waiting_to_begin_cycle())
       {
-         if(id==event_start_marker) readout_state=readout_state_t::in_event_readout;
-         return false;
+         if(id==event_start_marker) {
+            readout_state=readout_state_t::in_event_readout;
+            _reading_module=_dummy_module=true;
+         }
+         return true;
       }
 
       // if we are in a readout cycle, check for end of event marker
       if(in_readout_cycle() && id==event_end_marker)
       {
-         readout_state=readout_state_t::finished_readout;
-         return false;
-      }
-
-      // we may meet a start event marker before completing the previous event
-      // (truncated events?) in this case we need to store whatever we got from the
-      // previous event and start another one
-      if(in_readout_cycle() && id==event_start_marker)
-      {
-         readout_state=readout_state_t::start_event_found_in_readout_cycle;
-         return false;
+         readout_state=readout_state_t::awaiting_eoe_for_end_readout;
+         _reading_module=_dummy_module=true;
+         return true;
       }
 
       // OK if module id is part of setup
-      return exp_setup->has_module(id);
+      _dummy_module=false;
+      return (_reading_module = exp_setup->has_module(id));
    }
 
 }
