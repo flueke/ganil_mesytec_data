@@ -214,6 +214,7 @@ namespace mesytec
          // if no data words are present for the module, this is 0
          return data.size() ? data.size()+1 : 0;
       }
+      bool has_data() const { return data.size()>0; }
    };
 
    /**
@@ -302,6 +303,7 @@ namespace mesytec
          for(auto& m : modules) m.add_data_to_buffer(buf);
          return buf;
       }
+      bool has_data() const { return modules.size()>0; }
    };
 }
 #endif // READ_LISTFILE_H
