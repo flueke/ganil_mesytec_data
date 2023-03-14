@@ -83,7 +83,7 @@ int main(int argc, char* argv[])
       }
       // next word should be header
       auto next_word = mesytec::read_data_word(istrm);
-      if(!mesytec::is_event_header(next_word))
+      if(!mesytec::is_module_header(next_word))
       {
          printf("Fatal error. next word should be header\n");
          throw(std::runtime_error("data corruption"));
@@ -156,7 +156,7 @@ int main(int argc, char* argv[])
          bool got_header=false;
          do{
             next_word = mesytec::read_data_word(istrm);
-            got_header=mesytec::is_event_header(next_word);
+            got_header=mesytec::is_module_header(next_word);
          } while(!got_header);
       }
    }

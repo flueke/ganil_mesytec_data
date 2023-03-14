@@ -35,14 +35,14 @@ uint32_t mesytec::read_data_word(const uint8_t *data)
    return x;
 }
 
-bool mesytec::is_event_header(uint32_t DATA)
+bool mesytec::is_module_header(uint32_t DATA)
 {
    return ((DATA & data_flags::header_found_mask) == data_flags::header_found);
 }
 
 bool mesytec::is_end_of_event(uint32_t DATA)
 {
-   return ((DATA & data_flags::eoe_found_mask) == data_flags::eoe_found_mask) && !is_frame_header(DATA);
+   return (DATA & data_flags::eoe_found_mask) == data_flags::eoe_found_mask;
 }
 
 bool mesytec::is_end_of_event_tgv(uint32_t DATA)
@@ -51,25 +51,11 @@ bool mesytec::is_end_of_event_tgv(uint32_t DATA)
    return (DATA == data_flags::eoe_found_mask);
 }
 
-bool mesytec::is_mdpp_data(uint32_t DATA)
-{
-   return ((DATA & data_flags::mdpp_data_mask) == data_flags::mdpp_data);
-}
 
-bool mesytec::is_vmmr_data(uint32_t DATA)
-{
-   return is_vmmr_adc_data(DATA) || is_vmmr_tdc_data(DATA);
-}
 
-bool mesytec::is_vmmr_adc_data(uint32_t DATA)
-{
-   return ((DATA & data_flags::vmmr_data_mask) == data_flags::vmmr_data_adc);
-}
 
-bool mesytec::is_vmmr_tdc_data(uint32_t DATA)
-{
-   return ((DATA & data_flags::vmmr_data_mask) == data_flags::vmmr_data_tdc);
-}
+
+
 
 bool mesytec::is_fill_word(uint32_t DATA)
 {
@@ -92,7 +78,7 @@ std::string mesytec::decode_type(uint32_t DATA)
 
    if(is_frame_header(DATA))
       return decode_frame_header(DATA);
-   else if(is_event_header(DATA))
+   else if(is_module_header(DATA))
    {
 //      if(module_id(DATA)==0x1) ss << "TGV";
 //      else

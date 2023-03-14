@@ -294,9 +294,6 @@ namespace mesytec
       {}
    };
 
-   bool is_vmmr_tdc_data(uint32_t DATA);
-   bool is_vmmr_adc_data(uint32_t DATA);
-
    /**
       \class bus
       \brief Group of channels belonging to a module
@@ -346,6 +343,15 @@ public:
          return channel_name[channel];
       }
    };
+
+   inline bool is_vmmr_tdc_data(uint32_t DATA)
+   {
+      return ((DATA & data_flags::vmmr_data_mask) == data_flags::vmmr_data_tdc);
+   }
+   inline bool is_vmmr_adc_data(uint32_t DATA)
+   {
+      return ((DATA & data_flags::vmmr_data_mask) == data_flags::vmmr_data_adc);
+   }
 
    /**
    \class module
@@ -645,11 +651,21 @@ public:
    std::map<uint8_t, module> define_setup(std::vector<module>&& modules);
    uint32_t read_data_word(std::istream& data);
    uint32_t read_data_word(const uint8_t* data);
-   bool is_event_header(uint32_t DATA);
+   bool is_module_header(uint32_t DATA);
    bool is_end_of_event(uint32_t DATA);
    bool is_end_of_event_tgv(uint32_t DATA);
-   bool is_mdpp_data(uint32_t DATA);
-   bool is_vmmr_data(uint32_t DATA);
+   inline bool is_mdpp_data(uint32_t DATA)
+   {
+      return ((DATA & data_flags::mdpp_data_mask) == data_flags::mdpp_data);
+   }
+   inline bool is_vmmr_data(uint32_t DATA)
+   {
+      return is_vmmr_adc_data(DATA) || is_vmmr_tdc_data(DATA);
+   }
+   inline bool is_mesytec_data(uint32_t DATA)
+   {
+      return is_mdpp_data(DATA) || is_vmmr_data(DATA);
+   }
    bool is_tgv_data(uint32_t DATA);
    bool is_fill_word(uint32_t DATA);
    bool is_extended_ts(uint32_t DATA);
