@@ -56,6 +56,12 @@ struct mesytec_mfm_converter
       // unless there is no room left in the buffer, in which case it will be treated
       // the next time that process_block is called
 
+      if(mesy_event.size_of_buffer() == 0)
+      {
+         std::cout << "********************* Event Size ZERO ***************************" << std::endl;
+         throw( std::runtime_error("event size is zero") );
+      }
+
       // 24 bytes for MFM header, plus the Mesytec data buffer
       size_t mfmeventsize = 24 + mesy_event.size_of_buffer()*4;
 
