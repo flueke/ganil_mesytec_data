@@ -13,7 +13,7 @@
 #define MESYTEC_DATA_BUFFER_READER_NO_DEFINE_SETUP
 #define MESYTEC_DATA_BUFFER_READER_CALLBACK_WITH_EVENT_AND_SETUP
 
-// #define DEBUG
+#define DEBUG
 
 namespace mesytec
 {
@@ -435,10 +435,14 @@ namespace mesytec
                   if(is_mesytec_data(next_word))
                   {
 #ifdef DEBUG
-                     std::cout << "DATA\n";
+                     std::cout << "DATA: " << mesytec_setup.get_module(mod_data.get_module_id()).decode_data(next_word) << std::endl;
 #endif
                      mod_data.add_data(next_word);
                   }
+#ifdef DEBUG
+                  else
+                     std::cout << decode_type(next_word) << std::endl;
+#endif
                }
             }
             else if(is_module_header(next_word))
@@ -470,7 +474,7 @@ namespace mesytec
             }
 #ifdef DEBUG
             else
-               std::cout << std::endl;
+               std::cout << decode_type(next_word) << std::endl;
 #endif
             // advance to next 32-bit word in buffer
             buf_pos+=4;

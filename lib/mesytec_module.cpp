@@ -1,5 +1,4 @@
 #include "mesytec_module.h"
-#include <sstream>
 
 std::unordered_map<std::string,std::string> mesytec::module::data_type_aliases
       = {
@@ -76,15 +75,15 @@ std::string mesytec::decode_type(uint32_t DATA)
 {
    std::ostringstream ss;
 
-   if(is_frame_header(DATA))
-      return decode_frame_header(DATA);
-   else if(is_module_header(DATA))
+   if(is_module_header(DATA))
    {
 //      if(module_id(DATA)==0x1) ss << "TGV";
 //      else
          ss << "EVENT-HEADER: Module-ID=" << std::hex << std::showbase << (int)module_id(DATA);
       return ss.str();
    }
+   else if(is_frame_header(DATA))
+      return decode_frame_header(DATA);
    else if(is_end_of_event(DATA))
       return "END-OF-EVENT";
    else if(is_fill_word(DATA))
@@ -161,7 +160,7 @@ std::string mesytec::decode_frame_header(mesytec::u32 header)
 {
    std::ostringstream ss;
 
-   ss << std::hex << std::showbase << header << std::dec << " FRAME-HEADER : ";
+   ss << "FRAME-HEADER : ";
    auto headerInfo = extract_frame_info(header);
 
    switch (static_cast<frame_headers::FrameTypes>(headerInfo.type))

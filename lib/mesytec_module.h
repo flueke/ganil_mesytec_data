@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <vector>
 #include <iostream>
+#include <sstream>
 #include <map>
 #include <unordered_map>
 #include <string>
@@ -530,6 +531,20 @@ public:
             printf("== MDPP-DATA :: %s [%#04x]  chan_number = %02d    %s = %5d\n",
                    name.c_str(), id, get_channel_number(), get_data_type_name(get_data_type()).c_str(), get_channel_data());
       }
+      std::string decode_data(uint32_t data)
+      {
+         std::ostringstream ss;
+         set_data_word(data);
+         ss << get_type_name() << ":" << get_data_type_name(get_data_type()) << " ";
+         if(is_vmmr_module()){
+            ss << "bus=" << (int)get_bus_number();
+            if(get_channel_number()) ss << " sub-chan=" << (int)get_channel_number();
+         }
+         else if(is_mdpp_module())
+            ss << " channel=" << (int)get_channel_number();
+         ss << " data=" << get_channel_data();
+         return ss.str();
+      }
       /**
       \enum datatype_t
       \brief Different types of data which Mesytec modules may produce
@@ -618,6 +633,16 @@ public:
        */
       bool is_mvlc_scaler() const { return firmware==MVLC_SCALER; }
 
+      /**
+         @return type of module
+       */
+      std::string get_type_name() const
+      {
+         if(is_mdpp_module()) return "MDPP";
+         if(is_vmmr_module()) return "VMMR";
+         if(is_mvlc_scaler()) return "MVLC-SCLR";
+         return "unknown";
+      }
       void print() const
       {
          printf("Module id = %#05x  name = %s\n", id, name.c_str());
