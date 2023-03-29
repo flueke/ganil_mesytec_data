@@ -13,7 +13,7 @@
 #define MESYTEC_DATA_BUFFER_READER_NO_DEFINE_SETUP
 #define MESYTEC_DATA_BUFFER_READER_CALLBACK_WITH_EVENT_AND_SETUP
 
-#define DEBUG
+//#define DEBUG
 
 namespace mesytec
 {
@@ -387,18 +387,33 @@ namespace mesytec
 
          total_number_events_parsed = 0;
 
+         bool unknown_module = false;
+
          while(bytes_left_in_buffer)
          {
             auto next_word = read_data_word(buf_pos);
 #ifdef DEBUG
             std::cout << std::hex << std::showbase << next_word << " : ";
 #endif
-            if(mesytec_setup.readout.in_readout_cycle() && mesytec_setup.readout.reading_module())
+            if(unknown_module){
+               std::cout << std::hex << std::showbase << next_word;
+               if(is_vmmr_adc_data(next_word))
+               {
+                  std::cout << " : VMMR-ADC bus=" << std::dec << (int)((next_word & data_flags::vmmr_bus_mask) / data_flags::vmmr_bus_div) <<
+                               " channel=" << (int)((next_word & data_flags::vmmr_channel_mask) / data_flags::vmmr_channel_div) <<
+                               " data=" << (int)(next_word & data_flags::vmmr_adc_mask);
+               }
+               std::cout << std::endl;
+            }
+
+            if(mesytec_setup.readout.in_readout_cycle() &&
+                  (mesytec_setup.readout.reading_module() || unknown_module))
             {
                // we are currently reading data for a VME module.
                // check if we just read the EOE for the module
                if(is_end_of_event(next_word))
                {
+                  unknown_module=false;
 #ifdef DEBUG
                   std::cout << "EOE :";
 #endif
@@ -435,7 +450,7 @@ namespace mesytec
                   if(is_mesytec_data(next_word))
                   {
 #ifdef DEBUG
-                     std::cout << "DATA: " << mesytec_setup.get_module(mod_data.get_module_id()).decode_data(next_word) << std::endl;
+                     std::cout << "DATA: "; std::cout << mesytec_setup.get_module(mod_data.get_module_id()).decode_data(next_word) << std::endl;
 #endif
                      mod_data.add_data(next_word);
                   }
@@ -467,10 +482,14 @@ namespace mesytec
                      std::cout << " : dummy\n";
 #endif
                }
-#ifdef DEBUG
-               else
-                  std::cout << " : unknown module header\n";
-#endif
+               else if(mesytec_setup.readout.in_readout_cycle())
+               {
+                  // only treat module as unknown if we are in a readout cycle
+                  // (if first module in buffer is not 0xab)
+                  unknown_module = true;
+                  std::cout << "hEADER : id = " << std::hex << std::showbase << (int) module_id(next_word) << std::endl;
+                  std::cout << std::hex << std::showbase << next_word << std::endl;
+               }
             }
 #ifdef DEBUG
             else
