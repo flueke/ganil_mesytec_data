@@ -136,8 +136,8 @@ namespace mesytec
        */
       uint16_t get_number_of_data_words() const
       {
-         assert(data_words);
-         return data_words-1;
+         //assert(data_words);
+         return data_words ? data_words-1 : 0;
       }
       void set_header_word(uint32_t _header_word, firmware_t firmware)
       {

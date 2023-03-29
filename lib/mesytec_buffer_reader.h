@@ -1,7 +1,7 @@
 #ifndef MESYTEC_BUFFER_READER_H
 #define MESYTEC_BUFFER_READER_H
 
-#undef NDEBUG
+//#undef NDEBUG
 
 #include "mesytec_data.h"
 #include "mesytec_experimental_setup.h"
