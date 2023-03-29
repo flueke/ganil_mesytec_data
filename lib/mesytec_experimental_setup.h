@@ -36,7 +36,7 @@ namespace mesytec
        */
       enum class readout_state_t
       {
-          //! initial state
+         //! initial state
          waiting_for_event_start,
          //! readout in progress
          in_event_readout,
@@ -230,12 +230,9 @@ namespace mesytec
    bool setup_readout::is_next_module(uint8_t id)
    {
       // if we are not in a readout cycle, do nothing until start of event marker is found
-      if(waiting_to_begin_cycle())
-      {
-         if(id==event_start_marker) {
-            readout_state=readout_state_t::in_event_readout;
-            _reading_module=_dummy_module=true;
-         }
+      if(waiting_to_begin_cycle() && id==event_start_marker) {
+         readout_state=readout_state_t::in_event_readout;
+         _reading_module=_dummy_module=true;
          return true;
       }
 
