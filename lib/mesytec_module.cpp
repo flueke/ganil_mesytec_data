@@ -50,12 +50,6 @@ bool mesytec::is_end_of_event_tgv(uint32_t DATA)
    return (DATA == data_flags::eoe_found_mask);
 }
 
-
-
-
-
-
-
 bool mesytec::is_fill_word(uint32_t DATA)
 {
    return DATA == data_flags::fill_word_found;

@@ -261,7 +261,8 @@ namespace mesytec
       const uint32_t vmmr_data_mask = 0xF0000000;
       const uint32_t vmmr_data_length_mask = 0x00000FFF;
       const uint32_t vmmr_data_adc = 0x10000000;
-      const uint32_t vmmr_data_tdc = 0x30000000;
+      const uint32_t vmmr_data_tdc_a = 0x20000000;
+      const uint32_t vmmr_data_tdc_b = 0x30000000;
       const uint32_t vmmr_bus_mask = 0x0f000000;
       const uint32_t vmmr_bus_div = 0x01000000;
       const uint32_t vmmr_channel_mask = 0x00fff000;
@@ -347,7 +348,8 @@ public:
 
    inline bool is_vmmr_tdc_data(uint32_t DATA)
    {
-      return ((DATA & data_flags::vmmr_data_mask) == data_flags::vmmr_data_tdc);
+      return ((DATA & data_flags::vmmr_data_mask) == data_flags::vmmr_data_tdc_a)
+            || ((DATA & data_flags::vmmr_data_mask) == data_flags::vmmr_data_tdc_b);
    }
    inline bool is_vmmr_adc_data(uint32_t DATA)
    {

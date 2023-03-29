@@ -103,6 +103,17 @@ namespace mesytec
       uint8_t module_id{UNKNOWN};
    public:
       /**
+         dump contents as list of 32 bit data words (starting with header)
+       */
+      void dump_module_data() const
+      {
+         std::cout << std::hex << std::showbase << header_word << std::endl;
+         for(auto& v :data) std::cout << v.get_data_word() << std::endl;
+      }
+
+      uint32_t get_header_word() const { return header_word; }
+
+      /**
          @return HW address of module in VME crate
        */
       uint8_t get_module_id() const { return module_id; }
@@ -120,6 +131,14 @@ namespace mesytec
          eoe_word=0;
       }
 
+      /**
+         @return number of data words announced by header (not counting the EOE)
+       */
+      uint16_t get_number_of_data_words() const
+      {
+         assert(data_words);
+         return data_words-1;
+      }
       void set_header_word(uint32_t _header_word, firmware_t firmware)
       {
          clear();
@@ -167,15 +186,8 @@ namespace mesytec
       }
       void ls(const mesytec::experimental_setup & cfg) const
       {
-         //std::cout << " Module-ID=" << std::hex << std::showbase << (unsigned int)module_id << std::dec;
          auto& mod = cfg.get_module(module_id);
-         //std::cout << " " << mod.name;
-         if(mod.is_mdpp_module())
-         {
-            //               std::cout << "  [data words:" << data.size() << "]\n";
-            //               for(auto& d : data) d.ls(cfg,module_id);
-         }
-         else if(mod.is_vmmr_module())
+         if(mod.is_mdpp_module() || mod.is_vmmr_module())
          {
             //std::cout << "  [data words:" << data.size() << "]\n";
             for(auto& d : data) d.ls(cfg,module_id);
