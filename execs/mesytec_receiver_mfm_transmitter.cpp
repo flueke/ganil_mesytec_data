@@ -226,6 +226,7 @@ int main(int argc, char *argv[])
       {
          std::string what{ e.what() };
          std::cout << "[MESYTEC] : Error parsing Mesytec buffer : " << what << std::endl;
+         throw(e);
          // abandon buffer & try next one
          MESYbuf.reset();
          continue;

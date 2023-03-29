@@ -248,7 +248,7 @@ public:
    Object& get_object(Index id)
    {
       if(!has_object(id))
-         throw std::runtime_error("no object in map with requested index " + std::to_string(id) + " [maxindex=" + std::to_string(maxindex));
+         throw std::runtime_error("no object in map with requested index " + std::to_string(id) + " [maxindex=" + std::to_string(maxindex) +"]");
       return *objects[id];
    }
    /// \warning throws std::runtime_error if object with given index not in map
@@ -257,7 +257,7 @@ public:
    const Object& get_object(Index id) const
    {
       if(!has_object(id))
-         throw std::runtime_error("no object in map with requested index " + std::to_string(id) + " [maxindex=" + std::to_string(maxindex));
+         throw std::runtime_error("no object in map with requested index " + std::to_string(id) + " [maxindex=" + std::to_string(maxindex) +"]");
       return *objects[id];
    }
    Object& operator[](Index id) { return get_object(id); }
