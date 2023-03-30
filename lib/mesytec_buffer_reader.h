@@ -389,21 +389,21 @@ namespace mesytec
 
          total_number_events_parsed = 0;
 
-         uint16_t expected_data_words(0),actual_data_words(0);
+//         uint16_t expected_data_words(0),actual_data_words(0);
 
          bool unknown_module = false;
 
          while(bytes_left_in_buffer)
          {
             auto next_word = read_data_word(buf_pos);
-            if( is_fill_word(next_word) )
-            {
-               // fill word (=0) to keep even number of words
+//            if( is_fill_word(next_word) )
+//            {
+//               // fill word (=0) to keep even number of words
 
-               // fill words are included in the number of words stored in the module header
-               // therefore they must be subtracted from the expected number of data words
-               if(expected_data_words) --expected_data_words;
-            }
+//               // fill words are included in the number of words stored in the module header
+//               // therefore they must be subtracted from the expected number of data words
+//               if(expected_data_words) --expected_data_words;
+//            }
 #ifdef DEBUG
             std::cout << std::hex << std::showbase << next_word << " : ";
 #endif
@@ -437,27 +437,27 @@ namespace mesytec
                   if(!mesytec_setup.readout.dummy_module())// not a dummy module, i.e. 'START' or 'END' markers
                   {
                      // did we read expected amount of data for module?
-                     if(!unknown_module && actual_data_words!=expected_data_words)
-                     {
-                        std::cerr << "*** Read wrong number of data words for module id " << std::hex << std::showbase << (int)mod_data.get_module_id() << std::endl;
-                        std::cerr << "    Expected = " << std::dec << expected_data_words << "   Actual = " << actual_data_words << std::endl;
-                        mod_data.ls(mesytec_setup);
+//                     if(!unknown_module && actual_data_words!=expected_data_words)
+//                     {
+//                        std::cerr << "*** Read wrong number of data words for module id " << std::hex << std::showbase << (int)mod_data.get_module_id() << std::endl;
+//                        std::cerr << "    Expected = " << std::dec << expected_data_words << "   Actual = " << actual_data_words << std::endl;
+//                        mod_data.ls(mesytec_setup);
 
-                        auto header_pos = buf_pos-4;
-                        auto old_word = read_data_word(header_pos);
-                        while(old_word != mod_data.get_header_word())
-                        {
-                           header_pos-=4; old_word = read_data_word(header_pos);
-                        }
-                        while(header_pos!=buf_pos+4)
-                        {
-                           old_word = read_data_word(header_pos);
-                           std::cerr << std::hex << std::showbase << old_word <<std::endl;
-                           header_pos+=4;
-                        }
-                        //assert(actual_data_words==expected_data_words);
-                     }
-                     actual_data_words=expected_data_words=0;
+//                        auto header_pos = buf_pos-4;
+//                        auto old_word = read_data_word(header_pos);
+//                        while(old_word != mod_data.get_header_word())
+//                        {
+//                           header_pos-=4; old_word = read_data_word(header_pos);
+//                        }
+//                        while(header_pos!=buf_pos+4)
+//                        {
+//                           old_word = read_data_word(header_pos);
+//                           std::cerr << std::hex << std::showbase << old_word <<std::endl;
+//                           header_pos+=4;
+//                        }
+//                        //assert(actual_data_words==expected_data_words);
+//                     }
+//                     actual_data_words=expected_data_words=0;
 
                      if(mod_data.has_data()) {
                         mesy_event.add_module_data(mod_data);
@@ -495,7 +495,7 @@ namespace mesytec
                      std::cout << "DATA: "; std::cout << mesytec_setup.get_module(mod_data.get_module_id()).decode_data(next_word) << std::endl;
 #endif
                      mod_data.add_data(next_word);
-                     ++actual_data_words;
+//                     ++actual_data_words;
                   }
 #ifdef DEBUG
                   else
@@ -519,8 +519,8 @@ namespace mesytec
                      std::cout << " : real\n";
 #endif
                      mod_data.set_header_word(next_word,firmware);
-                     expected_data_words = mod_data.get_number_of_data_words();
-                     actual_data_words=0;
+//                     expected_data_words = mod_data.get_number_of_data_words();
+//                     actual_data_words=0;
                   }
 #ifdef DEBUG
                   else
