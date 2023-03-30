@@ -228,7 +228,7 @@ public:
       objects[id].reset(new Object(std::move(M)));
 #endif
    }
-   auto size() const
+   typename std::vector<Index>::size_type size() const
    {
       return id_list.size();
    }
