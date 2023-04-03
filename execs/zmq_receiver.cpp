@@ -42,7 +42,7 @@ struct mfm_header_decoder
 
 int main(int argc, char *argv[])
 {
-    po::options_description desc("\nmesytec_receiver_mfm_transmitter\n\nUsage");
+    po::options_description desc("\nzmq_receiver\n\nUsage");
 
     desc.add_options()
             ("help", "produce this message")
