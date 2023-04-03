@@ -256,8 +256,8 @@ namespace mesytec
 
       std::vector<module_data> modules;
       uint32_t event_counter;
-      uint16_t tgv_ts_lo,tgv_ts_mid,tgv_ts_hi;
    public:
+      uint16_t tgv_ts_lo,tgv_ts_mid,tgv_ts_hi;
       /**
          @return the least significant 16-bit word of the TGV timestamp data (bits 0-15)
        */
