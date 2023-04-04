@@ -1,4 +1,8 @@
 add_library(mesytec_data SHARED mesytec_module.cpp mesytec_experimental_setup.cpp mesytec_data.cpp mesytec_buffer_reader.cpp)
+target_include_directories(mesytec_data PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_PKGINCDIR}>  # <prefix>/include/mesytec_data
+)
 
 install(TARGETS mesytec_data
     EXPORT ${CMAKE_PROJECT_NAME}Exports
