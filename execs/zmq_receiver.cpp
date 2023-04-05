@@ -4,8 +4,8 @@
 #include <thread>
 #include <chrono>
 #include <iostream>
+#include <fstream>
 #include "boost/program_options.hpp"
-#include "mesytec_buffer_reader.h"
 
 zmq::context_t context(1);	// for ZeroMQ communications
 
@@ -33,7 +33,7 @@ struct mfm_header_decoder
         frame_size = *((frame_size_t*)&ev_dat[1]) * 2;// size in 16-bit units
         assert(M.size() == frame_size);
         frame_type = *((frame_type_t*)&ev_dat[5]);
-        if(frame_type != mesytec::mfm_frame_type){
+        if(frame_type != 0x4adf){
             throw( std::runtime_error("not a Mesytec frame!") );
         }
         blob_size = *((blob_size_t*)&ev_dat[20]);

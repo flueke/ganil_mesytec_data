@@ -622,6 +622,10 @@ public:
       bus& operator[](uint8_t i) const { return bus_map[i]; }
 
       /**
+         @return true if module is a TGV
+       */
+      bool is_tgv_module() const { return firmware==TGV; }
+      /**
          @return true if module is an MDPP
        */
       bool is_mdpp_module() const { return (firmware==MDPP_QDC) || (firmware==MDPP_SCP); }
@@ -629,6 +633,10 @@ public:
          @return true if module is a VMMR
        */
       bool is_vmmr_module() const { return (firmware==VMMR); }
+      /**
+         @return true for known Mesytec modules (MDPP or VMMR)
+       */
+      bool is_mesytec_module() const { return is_mdpp_module() || is_vmmr_module(); }
       /**
          @return true if (dummy) module corresponds to scaler data from MVLC
        */
