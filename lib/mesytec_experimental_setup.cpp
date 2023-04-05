@@ -21,7 +21,6 @@ namespace mesytec
       ///~~~
       ///
       /// In addition, dummy modules in this file are used to indicate:
-      ///    + the fake module id's used for `START_READOUT` and `END_READOUT` markers in data
       ///    + the fake module id's used for any scaler data coming from the MVLC controller
       ///
       /// | Module type | firmware | name |
@@ -33,8 +32,6 @@ namespace mesytec
       /// | VMMR        | VMMR     | VMMR |
       /// | TGV         | TGV      | TGV |
       /// | MVLC_SCALER | MVLC_SCALER | MVLC_SCALER |
-      /// | START_READOUT | START_READOUT | START_READOUT |
-      /// | END_READOUT | END_READOUT | END_READOUT |
 
 
       std::ifstream _mapfile;
@@ -57,8 +54,8 @@ namespace mesytec
       firmwares["CSI"] = mesytec::MDPP_CSI;
       firmwares["VMMR"] = mesytec::VMMR;
       firmwares["TGV"] = mesytec::TGV;
-      firmwares["START_READOUT"] = mesytec::START_READOUT;
-      firmwares["END_READOUT"] = mesytec::END_READOUT;
+      firmwares["START_READOUT"] = mesytec::START_READOUT;//will silently ignore
+      firmwares["END_READOUT"] = mesytec::END_READOUT;//will silently ignore
       firmwares["MVLC_SCALER"] = mesytec::MVLC_SCALER;
 
       // dummy map
@@ -80,11 +77,7 @@ namespace mesytec
             {
                throw(std::runtime_error("module "+name+" in crate map with unknown firmware "+firm));
             }
-            if(firmwares[firm]==START_READOUT)
-               readout.set_event_start_marker(modid);
-            else if(firmwares[firm]==END_READOUT)
-               readout.set_event_end_marker(modid);
-            else
+            if(firmwares[firm]!=START_READOUT && firmwares[firm]!=END_READOUT)
             {
                modmap[modid] = module{name, modid, nchan, firmwares[firm]};
                crate_map.add_id(modid);

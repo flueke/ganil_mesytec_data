@@ -32,24 +32,8 @@ namespace mesytec
       module_data mod_data;
       bool got_header=false;
       bool reading_data=false;
-      bool storing_last_complete_event=false;
-      uint32_t last_complete_event_counter=0;
       uint8_t* buf_pos=nullptr;
-      size_t bytes_left_in_buffer=0;
-      uint32_t total_number_events_parsed;
-      bool reading_tgv{false};
       bool reading_mvlc_scaler{false};
-      bool reading_mdpp{false};
-      bool reading_vmmr{false};
-      static const size_t last_buf_store_size=200;// 4 * nwords
-      std::array<uint8_t,last_buf_store_size> store_end_of_last_buffer;
-      std::array<uint32_t,4> mesytec_tgv_data;
-      uint mesytec_tgv_index,mvlc_scaler_index;
-      uint64_t last_timestamp{0};
-      double max_timestamp_diff{3600.};
-      int buf_copy{200};
-      uint8_t last_buffer[200];
-      bool have_last_buffer=false;
 
       /**
              Decode buffers encapsulated in MFM frames with frame revision id=1:

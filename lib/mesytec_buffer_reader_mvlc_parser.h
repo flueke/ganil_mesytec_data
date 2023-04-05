@@ -27,7 +27,6 @@ public:
         mesy_event.clear();
         mod_data.clear();
         total_number_events_parsed = 0;
-        mesytec_setup.readout.begin_readout();
         mvlcParserCallbacks = {};
         mvlcParserCounters = {};
         mvlcParserState = {};
@@ -45,7 +44,6 @@ public:
 
     void initialise_readout()
     {
-        mesytec_setup.readout.begin_readout();
         mvlcParserState = mvlc::readout_parser::make_readout_parser(mvlcCrateConfig.stacks);
 
         spdlog::info("readout structure parsed from mvlc_crateconfig.yaml:");
@@ -208,7 +206,6 @@ public:
         {
            F(mesy_event, mesytec_setup); // invoke the output callback
            mesy_event.clear();
-           mesytec_setup.readout.begin_readout();
            ++total_number_events_parsed;
         }
     }
