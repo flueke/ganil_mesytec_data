@@ -128,7 +128,7 @@ public:
         {
             const auto &moduleData = moduleDataList[moduleIndex];
 
-            if (moduleData.data.size>1) // not just a header, but also some data behind it
+            if (moduleData.data.size>2) // not just a header+EoE, but also some data in between!
             {
                 auto header = moduleData.data.data[0];
 
