@@ -168,27 +168,45 @@ public:
 
                 mod_data.set_header_word(header, mod->firmware); // also clears mod_data prior to setting the header word
 
+                if (mod->is_mvlc_scaler()) // only ever true on the very first word of the scaler readout ("write_marker 0x40c60005")
+                {
+                    assert(moduleData.data.size == 12); // count of the write_marker and vme_read commands in the "Scalers" readout block
+                    const size_t ScalerWordCount = 4;
+
+                    // scaler0
+                    size_t scalerWordOffset = 1;
+                    for (size_t i=0; i<ScalerWordCount; ++i)
+                        mod_data.add_data(moduleData.data.data[scalerWordOffset+i]);
+
+                    mesy_event.add_module_data(mod_data);
+
+                    assert(is_end_of_event(moduleData.data.data[scalerWordOffset+ScalerWordCount])); // must end up on 0xc0000000
+                    assert(is_module_header(moduleData.data.data[scalerWordOffset+ScalerWordCount+1])); // ensure we are on 0x40c70005
+                    assert(scalerWordOffset+ScalerWordCount+1 == 6);
+
+                    // scaler1 - change the current module before processing the data
+                    header = moduleData.data.data[6];
+                    moduleId = module_id(header);
+                    mod = &mesytec_setup.get_module(moduleId);
+                    assert(mod->is_mvlc_scaler());
+                    mod_data.set_header_word(header, mod->firmware);
+
+                    scalerWordOffset = 7;
+                    for (size_t i=0; i<ScalerWordCount; ++i)
+                        mod_data.add_data(moduleData.data.data[scalerWordOffset+i]);
+
+                    mesy_event.add_module_data(mod_data);
+
+                    assert(is_end_of_event(moduleData.data.data[scalerWordOffset+ScalerWordCount])); // must end up on 0xc0000000 again
+
+                    continue; // scalers handled to completion
+                }
+
+                // The module is neither tgv nor mvlc scaler.
+
                 // process all the remaining non-header data words that are part of this modules readout
                 for (size_t di=1; di<moduleData.data.size; ++di)
                 {
-                   // special treatment for MVLC Scaler fake modules
-                   // all scalers are read out as a single block, we must check data words for headers
-                   // corresponding to different scalers and change the current module
-                   if(mod->is_mvlc_scaler())
-                   {
-                      if(is_module_header(moduleData.data.data[di]))
-                      {
-                         header = moduleData.data.data[di];
-                         moduleId = module_id(header);
-                         mod = &mesytec_setup.get_module(moduleId);
-                         // add data from previous scaler to event
-                         mesy_event.add_module_data(mod_data);
-                         // initialise new scaler module data
-                         mod_data.set_header_word(header, mod->firmware);
-                         // skip to next data word
-                         continue;
-                      }
-                   }
                    if(!is_end_of_event(moduleData.data.data[di])                                 // WARNING! 0xc..... end of event word is the last data word
                          && !(mod->is_mesytec_module() && is_fill_word(moduleData.data.data[di])) // WARNING2! for Mesytec modules fill words (0) may be included here!
                          )
@@ -202,7 +220,7 @@ public:
         }
 
         // wait until data from all readout stacks have been collated before calling callback function
-        if(eventIndex+1 == mvlcParserState.readoutStructure.size())
+        if(eventIndex+1 == static_cast<int>(mvlcParserState.readoutStructure.size()))
         {
            F(mesy_event, mesytec_setup); // invoke the output callback
            mesy_event.clear();
